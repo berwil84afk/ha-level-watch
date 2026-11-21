@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.3";
+const CARD_VERSION = "0.7.5";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -1173,20 +1173,24 @@ function niceStep(raw) {
   return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow;
 }
 
-/** Water body from `surface` down to `bottom`, with two drifting waves on top. */
+/**
+ * Water body from `surface` down to `bottom`: a taller, slower swell behind,
+ * a quicker wave in front with a light crest, both drifting in opposite
+ * directions. Each drifts by exactly one wavelength, so the loop is seamless.
+ */
 function waves(surface, x, width, bottom, fill) {
-  const amp = 3;
-  const len = 40;
-  const wave = (offset) => {
-    let d = `M${x - len * 2} ${surface}`;
+  const crest = (len, amp, lift) => {
+    let d = `M${x - len * 2} ${surface - lift}`;
     for (let i = -2; i * len < width + len * 2; i += 1) {
-      d += ` q${len / 4} ${-amp + offset} ${len / 2} 0 t${len / 2} 0`;
+      d += ` q${len / 4} ${-amp} ${len / 2} 0 t${len / 2} 0`;
     }
-    return `${d} V${bottom} H${x - len * 2} Z`;
+    return d;
   };
+  const body = (len, amp, lift) => `${crest(len, amp, lift)} V${bottom} H${x - len * 2} Z`;
   return `
-    <path d="${wave(0)}" fill="${fill}" class="wave a"/>
-    <path d="${wave(1)}" fill="${fill}" class="wave b" opacity="0.6"/>`;
+    <g class="bob"><path d="${body(70, 8.5, 2.5)}" fill="${fill}" class="wave b" style="--len:70px" opacity="0.5"/></g>
+    <path d="${body(50, 6.5, 0)}" fill="${fill}" class="wave a" style="--len:50px"/>
+    <path d="${crest(50, 6.5, 0)}" class="wave a crest" style="--len:50px"/>`;
 }
 
 const STYLE = `<style>
@@ -1231,10 +1235,13 @@ const STYLE = `<style>
   .shell * { fill: color-mix(in srgb, var(--primary-text-color) 5%, transparent); }
   .rim * { fill: none; stroke: var(--secondary-text-color); stroke-width: 2; }
   .wave { transition: d 0.8s ease; }
-  .wave.a { animation: lw-drift 6s linear infinite; }
-  .wave.b { animation: lw-drift 9s linear infinite reverse; }
-  @keyframes lw-drift { from { transform: translateX(0); } to { transform: translateX(40px); } }
-  @media (prefers-reduced-motion: reduce) { .wave.a, .wave.b { animation: none; } }
+  .wave.a { animation: lw-drift 3.6s linear infinite; }
+  .wave.b { animation: lw-drift 6s linear infinite reverse; }
+  .wave.crest { fill: none; stroke: #fff; stroke-opacity: 0.4; stroke-width: 1.75; }
+  .bob { animation: lw-bob 3.8s ease-in-out infinite; }
+  @keyframes lw-drift { from { transform: translateX(0); } to { transform: translateX(var(--len, 40px)); } }
+  @keyframes lw-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2.5px); } }
+  @media (prefers-reduced-motion: reduce) { .wave.a, .wave.b, .bob { animation: none; } }
   .fc { display: flex; flex-direction: column; gap: 6px; }
   .fc.dim, .cbox.dim { opacity: 0.55; filter: grayscale(0.6); }
   .valrow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
