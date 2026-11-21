@@ -12,12 +12,18 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfLength, UnitOfTime
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfLength,
+    UnitOfTime,
+    UnitOfVolume,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LevelWatchConfigEntry
-from .const import QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_RATE
+from .const import KIND_TANK, QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_RATE
 from .entity import LevelWatchEntity
 from .model import LevelWatchModel, Snapshot
 from .thresholds import NORMAL_COLOR
@@ -59,6 +65,8 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "reference_max": s.ref_max,
         "color": _color(model),
         "stage": snap.stage.name if snap.stage else None,
+        "volume": None if snap.volume is None else round(snap.volume, 1),
+        "capacity": None if snap.capacity is None else round(snap.capacity, 1),
         "thresholds": [
             {
                 "name": t.name,
@@ -89,6 +97,13 @@ def _next_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "color": nxt.hex_color if nxt else None,
     }
 
+
+VOLUME_COMMON = {
+    "device_class": SensorDeviceClass.VOLUME_STORAGE,
+    "native_unit_of_measurement": UnitOfVolume.LITERS,
+    "state_class": SensorStateClass.MEASUREMENT,
+    "suggested_display_precision": 0,
+}
 
 LENGTH_COMMON = {
     "device_class": SensorDeviceClass.DISTANCE,
@@ -151,6 +166,51 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
         value_fn=lambda s: s.hours_to_next,
     ),
     LevelSensorDescription(
+        key="volume",
+        translation_key="volume",
+        value_fn=lambda s: s.volume,
+        attrs_fn=lambda m: {"capacity": m.snapshot.capacity},
+        **VOLUME_COMMON,
+    ),
+    LevelSensorDescription(
+        key="free_volume",
+        translation_key="free_volume",
+        value_fn=lambda s: s.free_volume,
+        **VOLUME_COMMON,
+    ),
+    LevelSensorDescription(
+        key="consumption",
+        translation_key="consumption",
+        native_unit_of_measurement="L/d",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        icon="mdi:water-minus",
+        value_fn=lambda s: s.consumption,
+    ),
+    LevelSensorDescription(
+        key="days_left",
+        translation_key="days_left",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.DAYS,
+        suggested_display_precision=0,
+        value_fn=lambda s: s.days_left,
+    ),
+    LevelSensorDescription(
+        key="time_to_full",
+        translation_key="time_to_full",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        suggested_display_precision=1,
+        value_fn=lambda s: s.hours_to_full,
+    ),
+    LevelSensorDescription(
+        key="last_refill",
+        translation_key="last_refill",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda s: s.last_refill,
+    ),
+    LevelSensorDescription(
         key="min_24h",
         translation_key="min_24h",
         value_fn=lambda s: s.min_24h,
@@ -181,6 +241,7 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
 )
 
 THRESHOLD_KEYS = {"stage", "next_threshold", "time_to_next"}
+SHAPE_KEYS = {"volume", "consumption", "days_left"}
 
 
 async def async_setup_entry(
@@ -196,6 +257,16 @@ async def async_setup_entry(
             return s.ref_max is not None
         if d.key in THRESHOLD_KEYS:
             return bool(s.thresholds)
+        if d.key in SHAPE_KEYS:
+            return s.tank is not None
+        if d.key == "free_volume":
+            return s.tank is not None and (
+                s.ref_max is not None or s.tank.max_height is not None
+            )
+        if d.key == "time_to_full":
+            return s.kind == KIND_TANK and s.ref_max is not None
+        if d.key == "last_refill":
+            return s.kind == KIND_TANK
         return True
 
     async_add_entities(LevelSensor(entry, model, d) for d in SENSORS if wanted(d))

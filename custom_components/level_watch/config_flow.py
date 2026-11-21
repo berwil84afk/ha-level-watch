@@ -19,33 +19,43 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 
-from . import calc, messaging
+from . import calc, messaging, tank
 from .const import (
     CONF_ADVANCED,
+    CONF_CONSUMPTION_WINDOW,
+    CONF_DIAMETER,
     CONF_KIND,
+    CONF_LENGTH,
     CONF_MAX_JUMP,
     CONF_MODE,
     CONF_NAME,
     CONF_OFFSET,
     CONF_REF_MAX,
     CONF_REF_MIN,
+    CONF_REFILL_JUMP,
     CONF_SENSOR_HEIGHT,
+    CONF_SHAPE,
     CONF_SMOOTHING,
     CONF_SOURCE,
     CONF_SOURCE_UNIT,
     CONF_STALE_TIMEOUT,
+    CONF_TANK,
     CONF_THRESHOLDS,
     CONF_TREND_DEADBAND,
     CONF_TREND_WINDOW,
+    CONF_WIDTH,
+    DEFAULT_CONSUMPTION_WINDOW,
     DEFAULT_MAX_JUMP,
     DEFAULT_NAME,
     DEFAULT_OFFSET,
     DEFAULT_REF_MIN,
+    DEFAULT_REFILL_JUMP,
     DEFAULT_SMOOTHING,
     DEFAULT_STALE_TIMEOUT,
     DEFAULT_TREND_DEADBAND,
     DEFAULT_TREND_WINDOW,
     DOMAIN,
+    KIND_TANK,
     KIND_WATER,
     KINDS,
     MODE_DISTANCE,
@@ -127,9 +137,32 @@ def _basic_schema(defaults: Mapping[str, Any], *, with_name: bool) -> dict:
                 CONF_REF_MIN, default=defaults.get(CONF_REF_MIN, DEFAULT_REF_MIN)
             ): LENGTH,
             opt(CONF_REF_MAX): LENGTH,
+            vol.Required(CONF_TANK): section(
+                _tank_schema(defaults.get(CONF_TANK) or {}),
+                {"collapsed": defaults.get(CONF_KIND) != KIND_TANK},
+            ),
         }
     )
     return fields
+
+
+def _tank_schema(tank_conf: Mapping[str, Any]) -> vol.Schema:
+    def opt(key: str) -> vol.Optional:
+        value = tank_conf.get(key)
+        if not value:
+            return vol.Optional(key)
+        return vol.Optional(key, description={"suggested_value": value})
+
+    return vol.Schema(
+        {
+            vol.Required(CONF_SHAPE, default=tank_conf.get(CONF_SHAPE, tank.NONE)): _select(
+                tank.SHAPES, CONF_SHAPE
+            ),
+            opt(CONF_DIAMETER): POSITIVE_LENGTH,
+            opt(CONF_LENGTH): POSITIVE_LENGTH,
+            opt(CONF_WIDTH): POSITIVE_LENGTH,
+        }
+    )
 
 
 def _advanced_schema(defaults: Mapping[str, Any]) -> vol.Schema:
@@ -153,6 +186,13 @@ def _advanced_schema(defaults: Mapping[str, Any]) -> vol.Schema:
             vol.Required(
                 CONF_MAX_JUMP, default=adv.get(CONF_MAX_JUMP, DEFAULT_MAX_JUMP)
             ): _number(0, 100000, 0.1, "cm"),
+            vol.Required(
+                CONF_CONSUMPTION_WINDOW,
+                default=adv.get(CONF_CONSUMPTION_WINDOW, DEFAULT_CONSUMPTION_WINDOW),
+            ): _number(1, 60, 1, "d"),
+            vol.Required(
+                CONF_REFILL_JUMP, default=adv.get(CONF_REFILL_JUMP, DEFAULT_REFILL_JUMP)
+            ): _number(0, 1000, 0.5, "cm"),
         }
     )
 
@@ -169,6 +209,15 @@ def _validate(hass: HomeAssistant, data: Mapping[str, Any]) -> dict[str, str]:
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
         if not calc.is_length_unit(unit):
             errors[CONF_SOURCE_UNIT] = "unit_unknown"
+    tank_conf = data.get(CONF_TANK) or {}
+    shape = tank.TankShape(
+        shape=tank_conf.get(CONF_SHAPE) or tank.NONE,
+        diameter=tank_conf.get(CONF_DIAMETER),
+        length=tank_conf.get(CONF_LENGTH),
+        width=tank_conf.get(CONF_WIDTH),
+    )
+    if data.get(CONF_KIND) == KIND_TANK and shape.shape != tank.NONE and shape.missing():
+        errors["base"] = f"tank_{shape.shape}"
     return errors
 
 

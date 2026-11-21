@@ -25,13 +25,34 @@
           "offset": "Added to every value, e.g. to correct the gauge zero.",
           "reference_min": "Level that counts as 0 % (empty or lowest level).",
           "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage."
+        },
+        "sections": {
+          "tank": {
+            "name": "Tank",
+            "description": "Only for type Tank. With the shape Level Watch computes litres, consumption and range. Reference zero is the tank bottom.",
+            "data": {
+              "shape": "Shape",
+              "diameter": "Diameter",
+              "length": "Length",
+              "width": "Width"
+            },
+            "data_description": {
+              "shape": "None: no volume, only height and percentage.",
+              "diameter": "Inner diameter, for cylinders.",
+              "length": "Inner length, for a horizontal cylinder and a box.",
+              "width": "Inner width, for a box."
+            }
+          }
         }
       }
     },
     "error": {
       "height_required": "Distance measurement needs the mounting height.",
       "max_below_min": "The top reference must be above the bottom reference.",
-      "unit_unknown": "The sensor has no length unit. Choose the unit manually."
+      "unit_unknown": "The sensor has no length unit. Choose the unit manually.",
+      "tank_vertical_cylinder": "A vertical cylinder needs the diameter.",
+      "tank_horizontal_cylinder": "A horizontal cylinder needs diameter and length.",
+      "tank_box": "A box needs length and width."
     },
     "abort": {
       "already_configured": "This sensor is already monitored."
@@ -122,14 +143,34 @@
               "trend_deadband": "Stable range",
               "smoothing": "Smoothing",
               "stale_timeout": "Stale after",
-              "max_jump": "Max. jump"
+              "max_jump": "Max. jump",
+              "consumption_window": "Consumption period",
+              "refill_jump": "Refill detection"
             },
             "data_description": {
               "trend_window": "Period over which the rate of change is computed.",
               "trend_deadband": "Rates within ± this value count as stable.",
               "smoothing": "Median over this period removes single outliers. 0 = off.",
               "stale_timeout": "Data counts as stale if the sensor reports nothing for this long.",
-              "max_jump": "Larger jumps are ignored until 3 readings confirm them. 0 = off."
+              "max_jump": "Larger jumps are ignored until 3 readings confirm them. 0 = off.",
+              "consumption_window": "Tank only: period over which the daily consumption is averaged.",
+              "refill_jump": "Tank only: a rise by at least this much within two hours counts as refill and restarts the consumption. 0 = off."
+            }
+          },
+          "tank": {
+            "name": "Tank",
+            "description": "Only for type Tank. With the shape Level Watch computes litres, consumption and range. Reference zero is the tank bottom.",
+            "data": {
+              "shape": "Shape",
+              "diameter": "Diameter",
+              "length": "Length",
+              "width": "Width"
+            },
+            "data_description": {
+              "shape": "None: no volume, only height and percentage.",
+              "diameter": "Inner diameter, for cylinders.",
+              "length": "Inner length, for a horizontal cylinder and a box.",
+              "width": "Inner width, for a box."
             }
           }
         }
@@ -139,7 +180,10 @@
       "height_required": "Distance measurement needs the mounting height.",
       "max_below_min": "The top reference must be above the bottom reference.",
       "unit_unknown": "The sensor has no length unit. Choose the unit manually.",
-      "targets_required": "Choose at least one target."
+      "targets_required": "Choose at least one target.",
+      "tank_vertical_cylinder": "A vertical cylinder needs the diameter.",
+      "tank_horizontal_cylinder": "A horizontal cylinder needs diameter and length.",
+      "tank_box": "A box needs length and width."
     }
   },
   "selector": {
@@ -169,6 +213,14 @@
         "m": "m",
         "in": "in",
         "ft": "ft"
+      }
+    },
+    "shape": {
+      "options": {
+        "none": "None",
+        "vertical_cylinder": "Vertical cylinder",
+        "horizontal_cylinder": "Horizontal cylinder",
+        "box": "Box"
       }
     }
   },
@@ -222,6 +274,24 @@
             "name": "Last reading"
           }
         }
+      },
+      "volume": {
+        "name": "Volume"
+      },
+      "free_volume": {
+        "name": "Free volume"
+      },
+      "consumption": {
+        "name": "Consumption per day"
+      },
+      "days_left": {
+        "name": "Range"
+      },
+      "time_to_full": {
+        "name": "Time to full"
+      },
+      "last_refill": {
+        "name": "Last refill"
       }
     }
   }

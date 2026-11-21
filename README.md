@@ -2,8 +2,8 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.2.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität sowie Schwellenwerte mit Meldungen.
-> Tankvolumen und die eigene Pegel-Karte folgen in den nächsten Versionen.
+> **Stand 0.3.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen sowie Tankvolumen, Verbrauch und Reichweite.
+> Die eigene Pegel-Karte folgt in der nächsten Version.
 
 ## Was du bekommst
 
@@ -104,8 +104,35 @@ In den Optionen unter *Tendenz und Datenqualität*:
 | Glättung | 5 min | Median gegen einzelne Ausreißer, 0 = aus |
 | Veraltet nach | 60 min | ohne Meldung des Sensors gilt der Wert als veraltet |
 | Max. Sprung | 0 (aus) | größere Sprünge zählen erst nach 3 übereinstimmenden Messungen |
+| Zeitraum Verbrauch | 7 d | nur Tank: über diesen Zeitraum wird der Tagesverbrauch gemittelt |
+| Nachtanken erkennen ab | 5 cm | nur Tank: so viel Anstieg binnen zwei Stunden gilt als Nachtanken, 0 = aus |
 
 Für einen Heizöltank, dessen Pegel nur langsam fällt, lohnt ein langes Zeitfenster (z. B. 1440 min) und ein kleiner Stabil-Bereich (z. B. 0,05 cm/h).
+
+## Tank
+
+Bei *Art: Tank* gibst du im Abschnitt *Tank* die Form und die Innenmaße an. Der Nullpunkt ist der Tankboden. Liegt dein Sensor-Nullpunkt woanders, gleichst du das mit *Korrektur* aus.
+
+| Form | Maße |
+|---|---|
+| Stehender Zylinder | Durchmesser |
+| Liegender Zylinder | Durchmesser, Länge |
+| Quader | Länge, Breite |
+
+Damit kommen diese Sensoren dazu:
+
+| Sensor | Bedeutung |
+|---|---|
+| Volumen | Inhalt in Litern, Fassungsvermögen im Attribut `capacity` |
+| Freies Volumen | so viel passt noch hinein, bis *Bezug oben* (beim liegenden Zylinder sonst bis zum Durchmesser) |
+| Verbrauch pro Tag | Liter pro Tag, gemittelt seit dem letzten Nachtanken über höchstens den eingestellten Zeitraum. Ein Wert erscheint nach 12 Stunden Daten. |
+| Reichweite | Tage, bis *Bezug unten* bei diesem Verbrauch erreicht ist |
+| Zeit bis voll | Stunden bis *Bezug oben*, solange der Pegel steigt (auch ohne Form) |
+| Letztes Nachtanken | Zeitpunkt des letzten erkannten Nachtankens (auch ohne Form) |
+
+Mit Form rechnet der *Füllstand* nach Volumen. Beim liegenden Zylinder ist halbe Höhe genau 50 %, ein Viertel der Höhe aber nur etwa 20 %.
+
+Regen in der Zisterne zählt wie Nachtanken. Danach beginnt die Verbrauchsrechnung von vorn.
 
 ## Entwicklung
 

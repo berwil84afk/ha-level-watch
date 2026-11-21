@@ -18,6 +18,7 @@ USER_INPUT = {
     "offset": 0,
     "reference_min": 0,
     "reference_max": 800,
+    "tank": {"shape": "none"},
 }
 
 

@@ -30,28 +30,37 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import calc, messaging
+from . import calc, messaging, tank
 from .const import (
     CONF_ADVANCED,
+    CONF_CONSUMPTION_WINDOW,
+    CONF_DIAMETER,
     CONF_KIND,
+    CONF_LENGTH,
     CONF_MAX_JUMP,
     CONF_MODE,
     CONF_NAME,
     CONF_OFFSET,
     CONF_REF_MAX,
     CONF_REF_MIN,
+    CONF_REFILL_JUMP,
     CONF_SENSOR_HEIGHT,
+    CONF_SHAPE,
     CONF_SMOOTHING,
     CONF_SOURCE,
     CONF_SOURCE_UNIT,
     CONF_STALE_TIMEOUT,
+    CONF_TANK,
     CONF_THRESHOLDS,
     CONF_TREND_DEADBAND,
     CONF_TREND_WINDOW,
+    CONF_WIDTH,
+    DEFAULT_CONSUMPTION_WINDOW,
     DEFAULT_MAX_JUMP,
     DEFAULT_NAME,
     DEFAULT_OFFSET,
     DEFAULT_REF_MIN,
+    DEFAULT_REFILL_JUMP,
     DEFAULT_SMOOTHING,
     DEFAULT_STALE_TIMEOUT,
     DEFAULT_TREND_DEADBAND,
@@ -59,7 +68,10 @@ from .const import (
     DOMAIN,
     EVENT_THRESHOLD,
     HISTORY_HOURS,
+    KIND_TANK,
     KIND_WATER,
+    LONG_HISTORY_POINTS,
+    MIN_CONSUMPTION_SPAN,
     MIN_SAMPLE_SPACING,
     MODE_DISTANCE,
     MODE_LEVEL,
@@ -101,6 +113,9 @@ class Settings:
     stale_timeout: float  # seconds
     max_jump: float  # cm
     thresholds: tuple[Threshold, ...] = ()
+    tank: tank.TankShape | None = None  # only for a tank with a known shape
+    consumption_window: float = DEFAULT_CONSUMPTION_WINDOW * 86400  # seconds
+    refill_jump: float = DEFAULT_REFILL_JUMP  # cm
 
     @classmethod
     def from_config(cls, conf: Mapping[str, Any]) -> Settings:
@@ -111,12 +126,25 @@ class Settings:
             return float(default if value is None else value)
 
         height = conf.get(CONF_SENSOR_HEIGHT)
+        tank_conf = conf.get(CONF_TANK) or {}
+
+        def dim(key: str) -> float | None:
+            value = tank_conf.get(key)
+            return None if value in (None, "", 0) else float(value)
+
+        shape = tank.TankShape(
+            shape=tank_conf.get(CONF_SHAPE) or tank.NONE,
+            diameter=dim(CONF_DIAMETER),
+            length=dim(CONF_LENGTH),
+            width=dim(CONF_WIDTH),
+        )
+        kind = conf.get(CONF_KIND) or KIND_WATER
         ref_max = conf.get(CONF_REF_MAX)
         return cls(
             name=conf.get(CONF_NAME) or DEFAULT_NAME,
             source=conf[CONF_SOURCE],
             source_unit=conf.get(CONF_SOURCE_UNIT) or UNIT_AUTO,
-            kind=conf.get(CONF_KIND) or KIND_WATER,
+            kind=kind,
             distance_mode=conf.get(CONF_MODE, MODE_LEVEL) == MODE_DISTANCE,
             sensor_height=None if height is None else float(height),
             offset=float(conf.get(CONF_OFFSET) or DEFAULT_OFFSET),
@@ -130,6 +158,10 @@ class Settings:
             stale_timeout=opt(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT) * 60,
             max_jump=opt(CONF_MAX_JUMP, DEFAULT_MAX_JUMP),
             thresholds=tuple(load_thresholds(conf.get(CONF_THRESHOLDS))),
+            tank=shape if kind == KIND_TANK and shape.defined else None,
+            consumption_window=opt(CONF_CONSUMPTION_WINDOW, DEFAULT_CONSUMPTION_WINDOW)
+            * 86400,
+            refill_jump=opt(CONF_REFILL_JUMP, DEFAULT_REFILL_JUMP),
         )
 
 
@@ -151,6 +183,14 @@ class Snapshot:
     active: Mapping[str, bool] | None = None
     next_threshold: Threshold | None = None
     hours_to_next: float | None = None
+    # Tank values
+    volume: float | None = None
+    capacity: float | None = None
+    free_volume: float | None = None
+    consumption: float | None = None
+    days_left: float | None = None
+    hours_to_full: float | None = None
+    last_refill: datetime | None = None
 
 
 class LevelWatchModel:
@@ -164,6 +204,10 @@ class LevelWatchModel:
         self.settings = Settings.from_config(conf)
         keep = max(HISTORY_HOURS * 3600, self.settings.trend_window) + 3600
         self.history = calc.LevelHistory(keep, MIN_SAMPLE_SPACING)
+        # Smoothed levels over days for the consumption, thinned to a fixed size.
+        window = self.settings.consumption_window
+        self.long = calc.LevelHistory(window, max(300.0, window / LONG_HISTORY_POINTS))
+        self._last_refill: float | None = None
         self.snapshot = Snapshot()
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}"
@@ -190,6 +234,8 @@ class LevelWatchModel:
         now = dt_util.utcnow().timestamp()
         try:
             self.history.load(data.get("samples", []), now)
+            self.long.load(data.get("long", []), now)
+            self._last_refill = data.get("last_refill")
             self._last_reading = data.get("last_reading")
             known = {t.id for t in self.settings.thresholds}
             self._active = {
@@ -201,6 +247,7 @@ class LevelWatchModel:
         except (TypeError, ValueError):
             _LOGGER.warning("Ignoring unreadable history of %s", self.settings.name)
             self.history.load([], now)
+            self.long.load([], now)
 
     @callback
     def async_start(self) -> None:
@@ -254,6 +301,7 @@ class LevelWatchModel:
             and ts - last.ts >= TICK_INTERVAL
         ):
             self.history.add(ts, last.value)
+            self._track_long(ts)
         self._recompute(ts)
         self._repeat_messages(ts)
 
@@ -280,6 +328,7 @@ class LevelWatchModel:
         self._pending_jump.clear()
         self.history.add(ts, level)
         self._last_reading = ts
+        self._track_long(ts)
         self._store.async_delay_save(self._data_to_save, STORAGE_SAVE_DELAY)
         self._recompute(now)
 
@@ -341,7 +390,7 @@ class LevelWatchModel:
         self.snapshot = Snapshot(
             level=level,
             raw_level=last.value if last else None,
-            percent=None if level is None else calc.percent(level, s.ref_min, s.ref_max),
+            percent=None if level is None else self._percent(level),
             rate=rate,
             trend=trend,
             min_24h=stats.minimum,
@@ -357,6 +406,7 @@ class LevelWatchModel:
             active=dict(self._active),
             next_threshold=upcoming,
             hours_to_next=hours,
+            **self._tank_values(now, level, rate if trend == calc.RISING else None),
         )
         for update in list(self._listeners):
             update()
@@ -367,7 +417,65 @@ class LevelWatchModel:
             "last_reading": self._last_reading,
             "active": self._active,
             "last_sent": self._last_sent,
+            "long": self.long.dump(),
+            "last_refill": self._last_refill,
         }
+
+    # -- tank ----------------------------------------------------------------
+
+    @callback
+    def _track_long(self, ts: float) -> None:
+        """Feed the smoothed level into the long history; spot refills."""
+        level = calc.smoothed(self.history, ts, self.settings.smoothing)
+        if level is None:
+            return
+        if tank.is_refill(self.long, ts, level, self.settings.refill_jump):
+            # The consumption starts over after a delivery or a rain shower.
+            _LOGGER.debug("%s: refill detected at %.1f cm", self.settings.name, level)
+            self.long.load([], ts)
+            self._last_refill = ts
+        self.long.add(ts, level)
+
+    def _percent(self, level: float) -> float | None:
+        s = self.settings
+        if s.tank is not None:
+            return tank.volume_percent(s.tank, level, s.ref_min, s.ref_max)
+        return calc.percent(level, s.ref_min, s.ref_max)
+
+    def _tank_values(
+        self, now: float, level: float | None, rising_rate: float | None
+    ) -> dict[str, Any]:
+        s = self.settings
+        if s.kind != KIND_TANK or level is None:
+            return {}
+        values: dict[str, Any] = {
+            "hours_to_full": tank.hours_to_full(level, s.ref_max, rising_rate),
+            "last_refill": (
+                dt_util.utc_from_timestamp(self._last_refill)
+                if self._last_refill is not None
+                else None
+            ),
+        }
+        shape = s.tank
+        if shape is None:
+            return values
+        volume = shape.volume(level)
+        cap = tank.capacity(shape, s.ref_max)
+        consumption = tank.consumption_per_day(
+            shape,
+            self.long,
+            now,
+            s.consumption_window,
+            min(MIN_CONSUMPTION_SPAN, s.consumption_window / 2),
+        )
+        values.update(
+            volume=volume,
+            capacity=cap,
+            free_volume=None if cap is None else max(0.0, cap - volume),
+            consumption=consumption,
+            days_left=tank.days_left(shape, level, s.ref_min, consumption),
+        )
+        return values
 
     # -- thresholds ----------------------------------------------------------
 

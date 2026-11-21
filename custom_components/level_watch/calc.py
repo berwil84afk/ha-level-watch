@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from statistics import median
-from typing import Iterable
+from typing import Callable, Iterable
 
 RISING = "rising"
 FALLING = "falling"
@@ -146,9 +146,19 @@ def rate_per_hour(
     span = samples[-1].ts - samples[0].ts
     if span < window_seconds * MIN_WINDOW_COVERAGE:
         return None
+    slope = slope_per_second(samples)
+    return None if slope is None else slope * 3600.0
+
+
+def slope_per_second(
+    samples: list[Sample], value_fn: Callable[[float], float] | None = None
+) -> float | None:
+    """Least-squares slope of the (optionally transformed) values per second."""
+    if len(samples) < 2:
+        return None
     t0 = samples[0].ts
     xs = [s.ts - t0 for s in samples]
-    ys = [s.value for s in samples]
+    ys = [value_fn(s.value) if value_fn else s.value for s in samples]
     n = len(xs)
     mean_x = sum(xs) / n
     mean_y = sum(ys) / n
@@ -156,7 +166,7 @@ def rate_per_hour(
     if sxx == 0:
         return None
     sxy = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
-    return sxy / sxx * 3600.0
+    return sxy / sxx
 
 
 def trend(rate: float | None, deadband: float) -> str | None:

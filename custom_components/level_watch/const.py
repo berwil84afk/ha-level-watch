@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "level_watch"
-VERSION: Final = "0.2.0"
+VERSION: Final = "0.3.0"
 
 # Basic settings
 CONF_NAME: Final = "name"
@@ -28,6 +28,15 @@ CONF_TREND_DEADBAND: Final = "trend_deadband"
 CONF_SMOOTHING: Final = "smoothing"
 CONF_STALE_TIMEOUT: Final = "stale_timeout"
 CONF_MAX_JUMP: Final = "max_jump"
+CONF_CONSUMPTION_WINDOW: Final = "consumption_window"
+CONF_REFILL_JUMP: Final = "refill_jump"
+
+# Tank section
+CONF_TANK: Final = "tank"
+CONF_SHAPE: Final = "shape"
+CONF_DIAMETER: Final = "diameter"
+CONF_LENGTH: Final = "length"
+CONF_WIDTH: Final = "width"
 
 KIND_WATER: Final = "water"
 KIND_TANK: Final = "tank"
@@ -48,6 +57,12 @@ DEFAULT_TREND_DEADBAND: Final = 1.0  # cm/h
 DEFAULT_SMOOTHING: Final = 5  # minutes, 0 = off
 DEFAULT_STALE_TIMEOUT: Final = 60  # minutes
 DEFAULT_MAX_JUMP: Final = 0.0  # cm, 0 = off
+DEFAULT_CONSUMPTION_WINDOW: Final = 7  # days
+DEFAULT_REFILL_JUMP: Final = 5.0  # cm
+# The consumption needs data over at least this long (or half the window).
+MIN_CONSUMPTION_SPAN: Final = 12 * 3600
+# The long history keeps about this many samples whatever the window.
+LONG_HISTORY_POINTS: Final = 1000
 
 # Internal unit for every level value.
 UNIT_CM: Final = "cm"

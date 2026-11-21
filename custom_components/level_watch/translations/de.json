@@ -25,13 +25,34 @@
           "offset": "Wird zu jedem Wert addiert, z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand).",
           "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst."
+        },
+        "sections": {
+          "tank": {
+            "name": "Tank",
+            "description": "Nur für Art Tank. Mit der Form berechnet Level Watch Liter, Verbrauch und Reichweite. Nullpunkt ist der Tankboden.",
+            "data": {
+              "shape": "Form",
+              "diameter": "Durchmesser",
+              "length": "Länge",
+              "width": "Breite"
+            },
+            "data_description": {
+              "shape": "Keine: kein Volumen, nur Höhe und Prozent.",
+              "diameter": "Innendurchmesser, für Zylinder.",
+              "length": "Innenlänge, für liegenden Zylinder und Quader.",
+              "width": "Innenbreite, für Quader."
+            }
+          }
         }
       }
     },
     "error": {
       "height_required": "Für die Abstandsmessung wird die Einbauhöhe gebraucht.",
       "max_below_min": "Der obere Bezug muss über dem unteren liegen.",
-      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand."
+      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand.",
+      "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
+      "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
+      "tank_box": "Ein Quader braucht Länge und Breite."
     },
     "abort": {
       "already_configured": "Dieser Sensor wird bereits überwacht."
@@ -122,14 +143,34 @@
               "trend_deadband": "Stabil-Bereich",
               "smoothing": "Glättung",
               "stale_timeout": "Veraltet nach",
-              "max_jump": "Max. Sprung"
+              "max_jump": "Max. Sprung",
+              "consumption_window": "Zeitraum Verbrauch",
+              "refill_jump": "Nachtanken erkennen ab"
             },
             "data_description": {
               "trend_window": "Zeitraum, über den die Änderungsrate berechnet wird.",
               "trend_deadband": "Raten innerhalb ± dieses Werts gelten als stabil.",
               "smoothing": "Median über diesen Zeitraum entfernt einzelne Ausreißer. 0 = aus.",
               "stale_timeout": "Daten gelten als veraltet, wenn der Sensor so lange nichts meldet.",
-              "max_jump": "Größere Sprünge werden ignoriert, bis 3 Messungen sie bestätigen. 0 = aus."
+              "max_jump": "Größere Sprünge werden ignoriert, bis 3 Messungen sie bestätigen. 0 = aus.",
+              "consumption_window": "Nur Tank: Zeitraum, über den der Tagesverbrauch gemittelt wird.",
+              "refill_jump": "Nur Tank: Steigt der Pegel binnen zwei Stunden um mindestens so viel, gilt das als Nachtanken und der Verbrauch wird neu berechnet. 0 = aus."
+            }
+          },
+          "tank": {
+            "name": "Tank",
+            "description": "Nur für Art Tank. Mit der Form berechnet Level Watch Liter, Verbrauch und Reichweite. Nullpunkt ist der Tankboden.",
+            "data": {
+              "shape": "Form",
+              "diameter": "Durchmesser",
+              "length": "Länge",
+              "width": "Breite"
+            },
+            "data_description": {
+              "shape": "Keine: kein Volumen, nur Höhe und Prozent.",
+              "diameter": "Innendurchmesser, für Zylinder.",
+              "length": "Innenlänge, für liegenden Zylinder und Quader.",
+              "width": "Innenbreite, für Quader."
             }
           }
         }
@@ -139,7 +180,10 @@
       "height_required": "Für die Abstandsmessung wird die Einbauhöhe gebraucht.",
       "max_below_min": "Der obere Bezug muss über dem unteren liegen.",
       "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand.",
-      "targets_required": "Wähle mindestens ein Ziel."
+      "targets_required": "Wähle mindestens ein Ziel.",
+      "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
+      "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
+      "tank_box": "Ein Quader braucht Länge und Breite."
     }
   },
   "selector": {
@@ -169,6 +213,14 @@
         "m": "m",
         "in": "in",
         "ft": "ft"
+      }
+    },
+    "shape": {
+      "options": {
+        "none": "Keine",
+        "vertical_cylinder": "Stehender Zylinder",
+        "horizontal_cylinder": "Liegender Zylinder",
+        "box": "Quader"
       }
     }
   },
@@ -222,6 +274,24 @@
             "name": "Letzte Messung"
           }
         }
+      },
+      "volume": {
+        "name": "Volumen"
+      },
+      "free_volume": {
+        "name": "Freies Volumen"
+      },
+      "consumption": {
+        "name": "Verbrauch pro Tag"
+      },
+      "days_left": {
+        "name": "Reichweite"
+      },
+      "time_to_full": {
+        "name": "Zeit bis voll"
+      },
+      "last_refill": {
+        "name": "Letztes Nachtanken"
       }
     }
   }
