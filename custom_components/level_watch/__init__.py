@@ -2,18 +2,57 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from homeassistant.components import frontend
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
+from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
+from homeassistant.helpers.typing import ConfigType
 
-from .const import DOMAIN, STORAGE_VERSION
+from .const import CARD_URL, DOMAIN, STORAGE_VERSION, VERSION
 from .model import LevelWatchModel
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type LevelWatchConfigEntry = ConfigEntry[LevelWatchModel]
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Serve the Level Watch card; no resource needs to be added by hand."""
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(
+                CARD_URL,
+                str(Path(__file__).parent / "www" / "level-watch-card.js"),
+                cache_headers=False,
+            )
+        ]
+    )
+    _async_register_card(hass)
+    return True
+
+
+@callback
+def _async_register_card(hass: HomeAssistant) -> None:
+    """Load the card in the browser once the frontend is set up."""
+    url = f"{CARD_URL}?v={VERSION}"
+    if "frontend" in hass.config.components:
+        frontend.add_extra_js_url(hass, url)
+        return
+
+    @callback
+    def _component_loaded(event: Event) -> None:
+        if event.data.get("component") == "frontend":
+            frontend.add_extra_js_url(hass, url)
+            unsub()
+
+    unsub = hass.bus.async_listen(EVENT_COMPONENT_LOADED, _component_loaded)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: LevelWatchConfigEntry) -> bool:

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level Watch Card Preview</title>
+<style>
+  :root {
+    --primary-text-color: #212121; --secondary-text-color: #727272; --divider-color: #e0e0e0;
+    --card-background-color: #fff; --warning-color: #ff9800; --error-color: #db4437;
+    color-scheme: light;
+  }
+  body.dark {
+    --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --divider-color: #333;
+    --card-background-color: #1c1c1c; background: #111; color-scheme: dark;
+  }
+  body { font-family: Roboto, system-ui, sans-serif; background: #f2f2f2; margin: 0; padding: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  ha-card { display: block; background: var(--card-background-color); border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  .bar { margin-bottom: 12px; display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <button onclick="document.body.classList.toggle('dark')">Hell/Dunkel</button>
+</div>
+<div class="grid" id="grid"></div>
+<script>
+  customElements.define("ha-card", class extends HTMLElement {});
+</script>
+<script src="../custom_components/level_watch/www/level-watch-card.js"></script>
+<script>
+  const flood = [
+    { name: "Meldestufe 1", value: 500, direction: "above", color: "#f57c00" },
+    { name: "Meldestufe 2", value: 600, direction: "above", color: "#e53935" },
+    { name: "Niedrigwasser", value: 150, direction: "below", color: "#1976d2" },
+  ];
+  function lvl(id, state, a) {
+    return [id, { entity_id: id, state: String(state), last_updated: new Date().toISOString(),
+      attributes: { source_entity: "sensor.src", friendly_name: a.title + " Pegel", ...a } }];
+  }
+  const states = Object.fromEntries([
+    lvl("sensor.rhein_pegel", 412, { title: "Rhein Köln", kind: "water", reference_min: 0, reference_max: 800,
+      thresholds: flood.map((t) => ({ ...t, active: false })), color: "#26a69a", stage: null,
+      trend: "rising", rate: 4.2, quality: "ok", min_24h: 380.5, max_24h: 412, change_24h: 31.5,
+      next_threshold: "Meldestufe 1", hours_to_next: 20.9 }),
+    lvl("sensor.rhein2_pegel", 548.3, { title: "Rhein Bonn", kind: "water", reference_min: 0, reference_max: 800,
+      thresholds: flood.map((t) => ({ ...t, active: t.value === 500 })), color: "#f57c00", stage: "Meldestufe 1",
+      trend: "rising", rate: 12.6, quality: "ok", min_24h: 470, max_24h: 548.3, change_24h: 78.3,
+      next_threshold: "Meldestufe 2", hours_to_next: 4.1 }),
+    lvl("sensor.oel_pegel", 64.2, { title: "Heizöl", kind: "tank", shape: "horizontal_cylinder", top: 120,
+      reference_min: 5, reference_max: null, percent: 51.6, volume: 2583, capacity: 5000,
+      thresholds: [{ name: "Reserve", value: 25, direction: "below", color: "#e53935", active: false }],
+      color: "#26a69a", stage: null, trend: "stable", rate: -0.04, quality: "ok",
+      consumption: 18.4, days_left: 132, next_threshold: null }),
+    lvl("sensor.zisterne_pegel", 38, { title: "Zisterne", kind: "tank", shape: "vertical_cylinder", top: 200,
+      reference_min: 10, reference_max: 200, percent: 14.7, volume: 760, capacity: 6280,
+      thresholds: [{ name: "Reserve", value: 50, direction: "below", color: "#e53935", active: true },
+        { name: "Überlauf", value: 190, direction: "above", color: "#f57c00", active: false }],
+      color: "#e53935", stage: "Reserve", trend: "rising", rate: 2.5, quality: "ok",
+      hours_to_full: 64.8, next_threshold: "Überlauf", hours_to_next: 60.8 }),
+    lvl("sensor.regentonne_pegel", 71, { title: "Regentonne", kind: "tank", shape: "box", top: 90,
+      reference_min: 0, reference_max: 90, percent: 78.9, volume: 213, capacity: 270,
+      thresholds: [], color: "#26a69a", stage: null, trend: "falling", rate: -1.2, quality: "stale",
+      consumption: 9.1, days_left: 23.4 }),
+    lvl("sensor.brunnen_pegel", "unavailable", { title: "Brunnen", kind: "water", reference_min: 0,
+      reference_max: 300, thresholds: [], color: "#26a69a", stage: null, trend: null, rate: null,
+      quality: "unavailable" }),
+  ]);
+  // A day of history for each level sensor.
+  function history(id) {
+    const s = states[id];
+    const end = parseFloat(s.state);
+    if (!Number.isFinite(end)) return [];
+    const now = Date.now() / 1000;
+    const rows = [];
+    for (let i = 96; i >= 0; i--) {
+      const drift = (s.attributes.change_24h ?? (s.attributes.rate || 0) * 24) * (i / 96);
+      rows.push({ s: (end - drift + Math.sin(i / 5) * 1.5).toFixed(1), lu: now - i * 900 });
+    }
+    return rows;
+  }
+  const hass = {
+    states,
+    locale: { language: "de" },
+    language: "de",
+    entities: {},
+    devices: {},
+    themes: { darkMode: false },
+    async callWS(msg) { return { [msg.entity_ids[0]]: history(msg.entity_ids[0]) }; },
+  };
+  const grid = document.getElementById("grid");
+  for (const id of Object.keys(states)) {
+    const card = document.createElement("level-watch-card");
+    card.setConfig({ entity: id, title: states[id].attributes.title });
+    card.hass = hass;
+    grid.appendChild(card);
+  }
+</script>
+</body>
+</html>

@@ -2,8 +2,7 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.3.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen sowie Tankvolumen, Verbrauch und Reichweite.
-> Die eigene Pegel-Karte folgt in der nächsten Version.
+> **Stand 0.4.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks.
 
 ## Was du bekommst
 
@@ -134,11 +133,30 @@ Mit Form rechnet der *Füllstand* nach Volumen. Beim liegenden Zylinder ist halb
 
 Regen in der Zisterne zählt wie Nachtanken. Danach beginnt die Verbrauchsrechnung von vorn.
 
+## Karte
+
+Die Integration bringt die Karte **Level Watch** mit. Eine Ressource musst du nicht eintragen. Du findest sie unter *Dashboard bearbeiten → Karte hinzufügen → Level Watch* und kannst sie dort über die Oberfläche einstellen.
+
+- **Wasserpegel:** Pegellatte mit Skala, Wasserbecken mit bewegter Oberfläche und den Schwellen als Linien. Eine erreichte Schwelle wird durchgezogen dargestellt.
+- **Tank:** Die Darstellung folgt der eingestellten Form: liegender Zylinder (Ansicht von der Stirnseite), stehender Zylinder oder Quader. Angezeigt werden Füllstand, Liter, Reichweite, Verbrauch und *Zeit bis voll*.
+- **Farbe:** Wasser und Akzente nehmen die Farbe der aktiven Stufe an, sonst Blau.
+- **Dazu:** Tendenzpfeil mit Rate, *Nächste Schwelle in …*, Verlauf der letzten 24 Stunden mit Schwellenlinien und ein Hinweis, wenn die Daten veraltet sind oder der Sensor fehlt.
+
+```yaml
+type: custom:level-watch-card
+entity: sensor.rhein_pegel   # oder eine andere Entität desselben Level-Watch-Geräts
+title: Rhein                 # optional, sonst der Gerätename
+mode: auto                   # auto, water oder tank
+history_hours: 24            # 0 blendet den Verlauf aus
+```
+
 ## Entwicklung
 
 ```bash
 pip install -r requirements_test.txt
 pytest
 ```
+
+Die Karte siehst du ohne Home Assistant mit Testdaten: Starte `python -m http.server 8766` im Repo und öffne `http://127.0.0.1:8766/dev/preview.html`.
 
 Die Tests laufen auf Linux (GitHub Actions). Home Assistant selbst unterstützt Windows nicht.

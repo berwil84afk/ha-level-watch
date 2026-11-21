@@ -65,8 +65,23 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "reference_max": s.ref_max,
         "color": _color(model),
         "stage": snap.stage.name if snap.stage else None,
-        "volume": None if snap.volume is None else round(snap.volume, 1),
-        "capacity": None if snap.capacity is None else round(snap.capacity, 1),
+        "volume": _round(snap.volume, 1),
+        "capacity": _round(snap.capacity, 1),
+        # The card draws everything from this one entity.
+        "shape": s.tank.shape if s.tank else None,
+        "top": _top(model),
+        "percent": _round(snap.percent, 1),
+        "trend": snap.trend,
+        "rate": _round(snap.rate, 2),
+        "quality": snap.quality,
+        "min_24h": _round(snap.min_24h, 1),
+        "max_24h": _round(snap.max_24h, 1),
+        "change_24h": _round(snap.change_24h, 1),
+        "next_threshold": snap.next_threshold.name if snap.next_threshold else None,
+        "hours_to_next": _round(snap.hours_to_next, 2),
+        "consumption": _round(snap.consumption, 2),
+        "days_left": _round(snap.days_left, 1),
+        "hours_to_full": _round(snap.hours_to_full, 2),
         "thresholds": [
             {
                 "name": t.name,
@@ -78,6 +93,18 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
             for t in s.thresholds
         ],
     }
+
+
+def _round(value: float | None, digits: int) -> float | None:
+    return None if value is None else round(value, digits)
+
+
+def _top(model: LevelWatchModel) -> float | None:
+    """Height that counts as full: top reference, else the cylinder diameter."""
+    s = model.settings
+    if s.ref_max is not None:
+        return s.ref_max
+    return s.tank.max_height if s.tank else None
 
 
 def _stage_attrs(model: LevelWatchModel) -> dict[str, Any]:
