@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.5.0";
+const CARD_VERSION = "0.6.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -23,6 +23,17 @@ const TEXT = {
     style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
     now: "jetzt", expected: "voraussichtlich", today: "heute", tomorrow: "morgen",
     until: "bis", refilled: "Getankt", in_short: "in",
+    edit_thresholds: "Schwellen bearbeiten", add_threshold: "Schwelle hinzufügen",
+    save: "Speichern", cancel: "Abbrechen", saving: "Speichert …", delete: "Löschen",
+    f_name: "Name", f_value: "Wert", f_above: "steigt auf/über", f_below: "fällt auf/unter",
+    f_hysteresis: "Hysterese", f_notify: "Meldung senden", f_targets: "Melden über",
+    f_critical: "Kritisch (Companion App, klingelt auch lautlos)", f_clear: "Entwarnung senden",
+    f_repeat: "Wiederholen alle (min, 0 = einmal)", f_message: "Eigener Meldungstext",
+    f_message_hint: "Leer für den Standardtext. Platzhalter: {name} {threshold} {value} {level} {trend} {rate}",
+    more: "Meldung und mehr", no_thresholds: "Noch keine Schwellen. Leg die erste an.",
+    new_threshold: "Neue Schwelle", err_name: "Jede Schwelle braucht einen Namen.",
+    err_value: "Jede Schwelle braucht einen Wert.", err_targets: "Wähle für jede Schwelle mit Meldung mindestens ein Ziel.",
+    err_save: "Speichern fehlgeschlagen", no_targets: "Keine Meldewege gefunden.", preview: "Vorschau",
   },
   en: {
     rising: "rising", falling: "falling", stable: "stable", unknown: "trend pending",
@@ -38,8 +49,33 @@ const TEXT = {
     style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
     now: "now", expected: "expected", today: "today", tomorrow: "tomorrow",
     until: "until", refilled: "Refilled", in_short: "in",
+    edit_thresholds: "Edit thresholds", add_threshold: "Add threshold",
+    save: "Save", cancel: "Cancel", saving: "Saving …", delete: "Delete",
+    f_name: "Name", f_value: "Value", f_above: "rises to/above", f_below: "falls to/below",
+    f_hysteresis: "Hysteresis", f_notify: "Send notification", f_targets: "Notify via",
+    f_critical: "Critical (Companion app, sounds even when silent)", f_clear: "Send all-clear",
+    f_repeat: "Repeat every (min, 0 = once)", f_message: "Custom message",
+    f_message_hint: "Empty for the default text. Placeholders: {name} {threshold} {value} {level} {trend} {rate}",
+    more: "Notification and more", no_thresholds: "No thresholds yet. Add the first one.",
+    new_threshold: "New threshold", err_name: "Every threshold needs a name.",
+    err_value: "Every threshold needs a value.", err_targets: "Choose at least one target for every threshold that notifies.",
+    err_save: "Saving failed", no_targets: "No notify targets found.", preview: "Preview",
   },
 };
+
+const ICON = {
+  pencil: "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z",
+  trash: "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z",
+  chevron: "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z",
+  plus: "M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z",
+  close: "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z",
+  bell: "M21,19V20H3V19L5,17V11C5,7.9 7.03,5.17 10,4.29C10,4.19 10,4.1 10,4A2,2 0 0,1 12,2A2,2 0 0,1 14,4C14,4.1 14,4.19 14,4.29C16.97,5.17 19,7.9 19,11V17L21,19M14,21A2,2 0 0,1 12,23A2,2 0 0,1 10,21",
+};
+
+const icon = (name, cls = "") => `<svg class="mdi ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[name]}"/></svg>`;
+
+const toHex = (rgb) => `#${(rgb || [245, 124, 0]).map((v) => Number(v).toString(16).padStart(2, "0")).join("")}`;
+const toRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
 const TREND_ICON = {
   rising: "M4 18 L11 11 L14 14 L20 8 M15 8 H20 V13",
@@ -79,6 +115,13 @@ class LevelWatchCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    // The card body is rebuilt on every update; the editor dialog lives beside
+    // it so a new sensor value does not close or reset it.
+    this.shadowRoot.innerHTML = `${STYLE}${EDITOR_STYLE}<div id="card"></div><dialog id="editor"></dialog>`;
+    this._cardEl = this.shadowRoot.getElementById("card");
+    this._dialog = this.shadowRoot.getElementById("editor");
+    this._editor = null;
+    this._bindEditor();
     this._history = null;
     this._historyFetched = 0;
     this._renderKey = "";
@@ -180,7 +223,7 @@ class LevelWatchCard extends HTMLElement {
 
     if (!state) {
       const msg = hass.states[this._config.entity] ? t.not_level_watch : t.not_found;
-      this.shadowRoot.innerHTML = `${STYLE}<ha-card><div class="warn">${esc(msg)}: ${esc(this._config.entity)}</div></ha-card>`;
+      this._cardEl.innerHTML = `<ha-card><div class="warn">${esc(msg)}: ${esc(this._config.entity)}</div></ha-card>`;
       return;
     }
     this._fetchHistory(entityId);
@@ -208,9 +251,16 @@ class LevelWatchCard extends HTMLElement {
       : style === "ring" ? this._ring(c)
         : style === "compact" ? this._compact(c)
           : this._forecast(c);
-    this.shadowRoot.innerHTML = `${STYLE}
+    this._entityId = entityId;
+    this._lastCtx = c;
+    this._cardEl.innerHTML = `
       <ha-card class="${style}" style="--lw-color:${esc(color)}">${content}</ha-card>`;
-    this.shadowRoot.querySelector("ha-card").addEventListener("click", () => {
+    this._cardEl.querySelector("ha-card").addEventListener("click", (event) => {
+      if (event.target.closest(".edit")) {
+        event.stopPropagation();
+        this._openEditor();
+        return;
+      }
       const ev = new Event("hass-more-info", { bubbles: true, composed: true });
       ev.detail = { entityId };
       this.dispatchEvent(ev);
@@ -218,7 +268,193 @@ class LevelWatchCard extends HTMLElement {
   }
 
   _head(c) {
-    return `<div class="head"><div class="title">${esc(c.title)}</div>${this._stageChip(c.a, c.t)}</div>`;
+    const edit = this._hass?.user?.is_admin
+      ? `<button class="edit" title="${esc(c.t.edit_thresholds)}" aria-label="${esc(c.t.edit_thresholds)}">${icon("pencil")}</button>`
+      : "";
+    return `<div class="head"><div class="title">${esc(c.title)}</div><div class="headright">${this._stageChip(c.a, c.t)}${edit}</div></div>`;
+  }
+
+  // -- threshold editor -----------------------------------------------------------
+
+  async _openEditor() {
+    const t = TEXT[lang(this._hass)];
+    try {
+      const res = await this._hass.callWS({ type: "level_watch/thresholds", entity_id: this._entityId });
+      this._editor = {
+        draft: res.thresholds.map((th) => ({ ...th, color: toHex(th.color) })),
+        targets: res.targets || {},
+        open: new Set(),
+        error: "",
+        saving: false,
+      };
+    } catch (err) {
+      this._editor = { draft: [], targets: {}, open: new Set(), error: `${t.err_save}: ${err.message || err}`, saving: false };
+    }
+    this._renderEditor();
+    if (!this._dialog.open) this._dialog.showModal();
+  }
+
+  _closeEditor() {
+    this._dialog.close();
+    this._editor = null;
+  }
+
+  _bindEditor() {
+    const dlg = this._dialog;
+    dlg.addEventListener("click", (ev) => {
+      if (ev.target === dlg) { this._closeEditor(); return; }
+      const btn = ev.target.closest("[data-act]");
+      if (!btn || !this._editor) return;
+      const idx = Number(btn.dataset.idx);
+      const ed = this._editor;
+      const t = TEXT[lang(this._hass)];
+      switch (btn.dataset.act) {
+        case "close": this._closeEditor(); return;
+        case "add": {
+          const level = this._lastCtx?.hasLevel ? Math.round(this._lastCtx.level) : 0;
+          ed.draft.push({ name: t.new_threshold, value: level, direction: "above", hysteresis: 2,
+            color: "#f57c00", notify: false, targets: [], critical: false, message: "", clear_message: true, repeat: 0 });
+          ed.open.add(ed.draft.length - 1);
+          break;
+        }
+        case "delete": {
+          ed.draft.splice(idx, 1);
+          ed.open = new Set([...ed.open].filter((i) => i !== idx).map((i) => (i > idx ? i - 1 : i)));
+          break;
+        }
+        case "toggle": if (ed.open.has(idx)) ed.open.delete(idx); else ed.open.add(idx); break;
+        case "dir": ed.draft[idx].direction = btn.dataset.dir; break;
+        case "save": this._saveEditor(); return;
+        default: return;
+      }
+      this._renderEditor();
+    });
+    dlg.addEventListener("input", (ev) => this._editorInput(ev, false));
+    dlg.addEventListener("change", (ev) => this._editorInput(ev, true));
+    dlg.addEventListener("cancel", () => { this._editor = null; });
+  }
+
+  _editorInput(ev, structural) {
+    const el = ev.target;
+    const field = el.dataset?.field;
+    if (!field || !this._editor) return;
+    const th = this._editor.draft[Number(el.dataset.idx)];
+    if (!th) return;
+    if (field === "target") {
+      const set = new Set(th.targets);
+      if (el.checked) set.add(el.value); else set.delete(el.value);
+      th.targets = [...set];
+    } else if (el.type === "checkbox") {
+      th[field] = el.checked;
+    } else if (el.type === "number") {
+      th[field] = el.value === "" ? null : Number(el.value);
+    } else {
+      th[field] = el.value;
+    }
+    this._editor.error = "";
+    // Re-render only for switches; typing keeps focus and just refreshes the preview.
+    if (structural && el.type === "checkbox" && field === "notify") this._renderEditor();
+    else this._renderPreview();
+  }
+
+  _draftThresholds() {
+    return (this._editor?.draft || [])
+      .filter((th) => Number.isFinite(th.value))
+      .map((th) => ({ name: th.name, value: th.value, direction: th.direction, color: th.color, active: false }));
+  }
+
+  _renderPreview() {
+    const box = this._dialog.querySelector(".pv");
+    if (!box || !this._lastCtx) return;
+    const c = { ...this._lastCtx, a: { ...this._lastCtx.a, thresholds: this._draftThresholds() } };
+    box.innerHTML = this._zoneBar(c);
+  }
+
+  _renderEditor() {
+    const ed = this._editor;
+    if (!ed) return;
+    const t = TEXT[lang(this._hass)];
+    const targetEntries = Object.entries(ed.targets);
+    const rows = ed.draft.map((th, i) => {
+      const open = ed.open.has(i);
+      const targets = targetEntries.length
+        ? targetEntries.map(([id, label]) => `<label class="chk"><input type="checkbox" data-field="target" data-idx="${i}" value="${esc(id)}" ${th.targets.includes(id) ? "checked" : ""}><span>${esc(label)}</span></label>`).join("")
+        : `<div class="hint">${esc(t.no_targets)}</div>`;
+      const details = open ? `
+        <div class="details">
+          <label class="fld"><span>${t.f_hysteresis}</span><span class="num"><input type="number" step="0.5" min="0" data-field="hysteresis" data-idx="${i}" value="${esc(th.hysteresis)}"><em>cm</em></span></label>
+          <label class="sw"><input type="checkbox" data-field="notify" data-idx="${i}" ${th.notify ? "checked" : ""}><span class="track"></span><span>${t.f_notify}</span></label>
+          ${th.notify ? `
+            <div class="fld"><span>${t.f_targets}</span><div class="targets">${targets}</div></div>
+            <label class="sw"><input type="checkbox" data-field="critical" data-idx="${i}" ${th.critical ? "checked" : ""}><span class="track"></span><span>${t.f_critical}</span></label>
+            <label class="sw"><input type="checkbox" data-field="clear_message" data-idx="${i}" ${th.clear_message ? "checked" : ""}><span class="track"></span><span>${t.f_clear}</span></label>
+            <label class="fld"><span>${t.f_repeat}</span><span class="num"><input type="number" step="1" min="0" data-field="repeat" data-idx="${i}" value="${esc(th.repeat)}"><em>min</em></span></label>
+            <label class="fld"><span>${t.f_message}</span><textarea rows="2" data-field="message" data-idx="${i}">${esc(th.message)}</textarea><small>${esc(t.f_message_hint)}</small></label>
+          ` : ""}
+        </div>` : "";
+      return `
+        <div class="row ${open ? "open" : ""}" style="--th:${esc(th.color)}">
+          <div class="main">
+            <input class="swatch" type="color" data-field="color" data-idx="${i}" value="${esc(th.color)}" aria-label="Farbe">
+            <input class="name" type="text" data-field="name" data-idx="${i}" value="${esc(th.name)}" aria-label="${t.f_name}">
+            <div class="seg" role="group">
+              <button data-act="dir" data-dir="above" data-idx="${i}" class="${th.direction === "above" ? "on" : ""}" title="${t.f_above}">≥</button>
+              <button data-act="dir" data-dir="below" data-idx="${i}" class="${th.direction === "below" ? "on" : ""}" title="${t.f_below}">≤</button>
+            </div>
+            <span class="num val"><input type="number" step="0.5" data-field="value" data-idx="${i}" value="${esc(th.value ?? "")}" aria-label="${t.f_value}"><em>cm</em></span>
+            <button class="ib ${th.notify ? "bell" : "bell off"}" data-act="toggle" data-idx="${i}" title="${t.more}">${icon("bell")}</button>
+            <button class="ib" data-act="toggle" data-idx="${i}" title="${t.more}">${icon("chevron", open ? "up" : "")}</button>
+            <button class="ib del" data-act="delete" data-idx="${i}" title="${t.delete}">${icon("trash")}</button>
+          </div>
+          ${details}
+        </div>`;
+    }).join("");
+    this._dialog.innerHTML = `
+      <div class="dlg">
+        <div class="dhead">
+          <div><div class="dtitle">${t.edit_thresholds}</div><div class="dsub">${esc(this._lastCtx?.title || "")}</div></div>
+          <button class="ib" data-act="close" aria-label="${t.cancel}">${icon("close")}</button>
+        </div>
+        <div class="pvlabel">${t.preview}</div>
+        <div class="pv"></div>
+        <div class="rows">${rows || `<div class="empty">${t.no_thresholds}</div>`}</div>
+        <button class="add" data-act="add">${icon("plus")}<span>${t.add_threshold}</span></button>
+        ${ed.error ? `<div class="err">${esc(ed.error)}</div>` : ""}
+        <div class="dfoot">
+          <button class="btn" data-act="close">${t.cancel}</button>
+          <button class="btn primary" data-act="save" ${ed.saving ? "disabled" : ""}>${ed.saving ? t.saving : t.save}</button>
+        </div>
+      </div>`;
+    this._renderPreview();
+  }
+
+  async _saveEditor() {
+    const ed = this._editor;
+    const t = TEXT[lang(this._hass)];
+    if (ed.draft.some((th) => !String(th.name || "").trim())) ed.error = t.err_name;
+    else if (ed.draft.some((th) => !Number.isFinite(th.value))) ed.error = t.err_value;
+    else if (ed.draft.some((th) => th.notify && !th.targets.length)) ed.error = t.err_targets;
+    if (ed.error) { this._renderEditor(); return; }
+    ed.saving = true;
+    this._renderEditor();
+    try {
+      await this._hass.callWS({
+        type: "level_watch/thresholds/save",
+        entity_id: this._entityId,
+        thresholds: ed.draft.map((th) => ({
+          ...th,
+          name: String(th.name).trim(),
+          color: toRgb(th.color),
+          hysteresis: Number(th.hysteresis) || 0,
+          repeat: Number(th.repeat) || 0,
+        })),
+      });
+      this._closeEditor();
+    } catch (err) {
+      ed.saving = false;
+      ed.error = `${t.err_save}: ${err.message || err.code || err}`;
+      this._renderEditor();
+    }
   }
 
   // -- style: classic -----------------------------------------------------------
@@ -740,6 +976,79 @@ class LevelWatchCard extends HTMLElement {
 }
 
 const NORMAL_ZONE = "#26a69a";
+
+const EDITOR_STYLE = `<style>
+  .headright { display: flex; align-items: center; gap: 4px; flex: none; }
+  .edit { border: none; background: none; padding: 4px; margin: -4px -6px -4px 0; border-radius: 50%;
+    color: var(--secondary-text-color); cursor: pointer; display: flex; }
+  .edit:hover { background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); }
+  .mdi { width: 20px; height: 20px; fill: currentColor; display: block; }
+  dialog { border: none; padding: 0; border-radius: 20px; width: min(600px, calc(100vw - 24px));
+    max-height: calc(100vh - 48px); background: var(--card-background-color, #fff); color: var(--primary-text-color);
+    box-shadow: 0 12px 40px rgba(0,0,0,.3); font-family: var(--paper-font-body1_-_font-family, inherit); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .dlg { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .dhead { display: flex; justify-content: space-between; align-items: flex-start; }
+  .dtitle { font-size: 1.25em; font-weight: 500; }
+  .dsub { color: var(--secondary-text-color); font-size: 0.9em; }
+  .pvlabel { font-size: 0.75em; text-transform: uppercase; letter-spacing: .06em; color: var(--secondary-text-color); margin-bottom: -6px; }
+  .pv { padding: 2px 4px; }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row { border: 1px solid var(--divider-color, #e0e0e0); border-left: 4px solid var(--th); border-radius: 12px;
+    padding: 8px 8px 8px 10px; background: color-mix(in srgb, var(--th) 5%, transparent); }
+  .main { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 28px; height: 28px; padding: 0; border: none; border-radius: 50%; background: none; cursor: pointer; flex: none; }
+  .swatch::-webkit-color-swatch-wrapper { padding: 0; }
+  .swatch::-webkit-color-swatch { border: 2px solid var(--card-background-color, #fff); border-radius: 50%;
+    box-shadow: 0 0 0 1px var(--divider-color, #ccc); }
+  .swatch::-moz-color-swatch { border: none; border-radius: 50%; }
+  .dlg input[type=text], .dlg input[type=number], .dlg textarea { font: inherit; color: inherit; background: transparent;
+    border: 1px solid var(--divider-color, #ccc); border-radius: 8px; padding: 6px 8px; min-width: 0; box-sizing: border-box; }
+  .dlg input:focus, .dlg textarea:focus { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: -1px; border-color: transparent; }
+  .name { flex: 1; }
+  .num { display: inline-flex; align-items: center; gap: 4px; }
+  .num input { width: 80px; text-align: right; }
+  .num em { font-style: normal; color: var(--secondary-text-color); font-size: 0.85em; }
+  .seg { display: inline-flex; border: 1px solid var(--divider-color, #ccc); border-radius: 8px; overflow: hidden; flex: none; }
+  .seg button { border: none; background: none; color: var(--secondary-text-color); padding: 5px 9px; cursor: pointer; font: inherit; }
+  .seg button.on { background: var(--th); color: #fff; }
+  .ib { border: none; background: none; color: var(--secondary-text-color); padding: 5px; border-radius: 50%; cursor: pointer; display: flex; flex: none; }
+  .ib:hover { background: color-mix(in srgb, var(--primary-text-color) 8%, transparent); }
+  .ib.bell { color: var(--th); }
+  .ib.bell.off { opacity: .35; }
+  .ib.del:hover { color: var(--error-color, #db4437); }
+  .mdi.up { transform: rotate(180deg); }
+  .details { display: flex; flex-direction: column; gap: 10px; padding: 10px 4px 4px 34px; }
+  .fld { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; }
+  .fld > span:first-child { color: var(--secondary-text-color); }
+  .fld small, .hint { color: var(--secondary-text-color); font-size: 0.8em; }
+  .targets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--divider-color, #ccc);
+    border-radius: 16px; padding: 4px 10px 4px 6px; cursor: pointer; font-size: 0.9em; }
+  .chk:has(input:checked) { border-color: var(--th); background: color-mix(in srgb, var(--th) 12%, transparent); }
+  .sw { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9em; }
+  .sw input { position: absolute; opacity: 0; pointer-events: none; }
+  .track { width: 34px; height: 20px; border-radius: 10px; background: var(--divider-color, #ccc); position: relative; flex: none; transition: background .2s; }
+  .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+  .sw input:checked + .track { background: var(--th); }
+  .sw input:checked + .track::after { transform: translateX(14px); }
+  .sw input:focus-visible + .track { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
+  .add { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--divider-color, #bbb);
+    border-radius: 12px; background: none; color: var(--primary-color, #03a9f4); padding: 10px; cursor: pointer; font: inherit; }
+  .add:hover { background: color-mix(in srgb, var(--primary-color, #03a9f4) 6%, transparent); }
+  .empty { color: var(--secondary-text-color); text-align: center; padding: 12px; }
+  .err { color: var(--error-color, #db4437); font-size: 0.9em; }
+  .dfoot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+  .btn { font: inherit; font-weight: 500; border-radius: 18px; padding: 8px 18px; cursor: pointer; border: 1px solid var(--divider-color, #ccc);
+    background: none; color: var(--primary-color, #03a9f4); }
+  .btn.primary { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); border-color: transparent; }
+  .btn[disabled] { opacity: .6; cursor: default; }
+  @media (max-width: 480px) {
+    .main { flex-wrap: wrap; }
+    .name { flex-basis: calc(100% - 40px); }
+    .details { padding-left: 4px; }
+  }
+</style>`;
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));

@@ -15,6 +15,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
 from .const import CARD_URL, DOMAIN, STORAGE_VERSION, VERSION
+from . import websocket
 from .model import LevelWatchModel
 
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
@@ -35,6 +36,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ]
     )
     _async_register_card(hass)
+    websocket.async_register(hass)
     return True
 
 

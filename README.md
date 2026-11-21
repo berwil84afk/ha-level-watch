@@ -2,7 +2,7 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.5.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks.
+> **Stand 0.6.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen und Vorlagen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks, in der du die Schwellen auch bearbeiten kannst.
 
 ## Was du bekommst
 
@@ -26,7 +26,16 @@ Die Messwerte und der Zustand der Schwellen werden gespeichert. Tendenz und 24-h
 
 ## Schwellenwerte und Meldungen
 
-*Level Watch → Konfigurieren → Schwellenwert hinzufügen.* Je Schwelle:
+Schwellen legst du auf drei Wegen an:
+
+- **In der Karte:** Admins sehen oben rechts einen Stift. Er öffnet einen Editor mit Live-Vorschau des Zonenbalkens. Dort legst du Schwellen an, änderst und löschst sie und stellst die Meldungen ein. *Speichern* übernimmt alles auf einmal.
+- **Aus einer Vorlage:** *Level Watch → Konfigurieren → Schwellen aus Vorlage hinzufügen.*
+  - *Flusspegel:* Niedrigwasser und Meldestufen 1–4.
+  - *Tank:* fast leer, Reserve und voll.
+  - Du trägst nur die Werte ein, die du brauchst. Name, Farbe, Richtung und Hysterese sind vorbelegt. „Kritisch“ gilt dabei nur für Meldestufe 3 und 4 bzw. „Fast leer“.
+- **Einzeln:** *Level Watch → Konfigurieren → Schwellenwert hinzufügen.*
+
+Je Schwelle:
 
 | Feld | Bedeutung |
 |---|---|
@@ -39,6 +48,8 @@ Die Messwerte und der Zustand der Schwellen werden gespeichert. Tendenz und 24-h
 | Meldungstext | leer für den Standardtext; Platzhalter `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}` |
 | Entwarnung senden | auch melden, wenn die Schwelle aufgehoben ist |
 | Wiederholen alle | Meldung wiederholen, solange die Schwelle gilt (0 = einmal) |
+
+Für Pegel an Bundeswasserstraßen nennt Pegelonline auf der Seite jeder Messstelle Kennwerte wie MNW (mittleres Niedrigwasser), NNW (niedrigstes bekanntes Niedrigwasser) und HHW (höchstes bekanntes Hochwasser). Sie sind in cm über dem Pegelnullpunkt angegeben, genau wie die Werte der PEGELONLINE-Integration. Du kannst sie also direkt als Schwellen eintragen, z. B. MNW als *Niedrigwasser*.
 
 Ausgewertet wird nur, solange die Datenqualität „OK“ ist. Ein ausgefallener Sensor löst also keine Meldung aus. Dafür kannst du eine eigene Automation auf den Datenqualitäts-Sensor bauen.
 

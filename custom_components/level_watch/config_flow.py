@@ -70,6 +70,8 @@ from .thresholds import (
     DEFAULT_BELOW_COLOR,
     DEFAULT_HYSTERESIS,
     DIRECTIONS,
+    PRESETS,
+    preset_thresholds,
 )
 
 
@@ -260,6 +262,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
 
     def __init__(self) -> None:
         self._edit_id: str | None = None
+        self._preset: str | None = None
 
     @property
     def _options(self) -> dict[str, Any]:
@@ -272,7 +275,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        menu = ["settings", "add_threshold"]
+        menu = ["settings", "add_threshold", "add_preset"]
         if self._thresholds:
             menu += ["edit_threshold", "remove_threshold"]
         return self.async_show_menu(step_id="init", menu_options=menu)
@@ -304,6 +307,78 @@ class LevelWatchOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         self._edit_id = None
         return await self.async_step_threshold()
+
+    async def async_step_add_preset(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pick a set of typical thresholds, then fill in their values."""
+        if user_input is not None:
+            self._preset = user_input["preset"]
+            return await self.async_step_preset_values()
+        kind = {**self.config_entry.data, **self.config_entry.options}.get(CONF_KIND)
+        return self.async_show_form(
+            step_id="add_preset",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "preset", default="tank" if kind == KIND_TANK else "river"
+                    ): _select(list(PRESETS), "preset")
+                }
+            ),
+        )
+
+    async def async_step_preset_values(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        preset = self._preset or "river"
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            values = {item.key: user_input.get(item.key) for item in PRESETS[preset]}
+            if all(v is None for v in values.values()):
+                errors["base"] = "preset_empty"
+            elif user_input.get("notify") and not user_input.get("targets"):
+                errors["targets"] = "targets_required"
+            else:
+                added = preset_thresholds(
+                    preset,
+                    values,
+                    language=self.hass.config.language,
+                    notify=bool(user_input.get("notify")),
+                    targets=user_input.get("targets") or [],
+                    critical=bool(user_input.get("critical")),
+                    new_id=lambda: uuid4().hex[:8],
+                )
+                thresholds = sorted(self._thresholds + added, key=lambda t: t["value"])
+                return self.async_create_entry(
+                    data={**self._options, CONF_THRESHOLDS: thresholds}
+                )
+        fields: dict = {vol.Optional(item.key): LENGTH for item in PRESETS[preset]}
+        fields.update(
+            {
+                vol.Required("notify", default=False): selector.BooleanSelector(),
+                vol.Optional("targets", default=[]): self._targets_selector([]),
+                vol.Required("critical", default=False): selector.BooleanSelector(),
+            }
+        )
+        return self.async_show_form(
+            step_id="preset_values",
+            data_schema=vol.Schema(fields),
+            errors=errors,
+            description_placeholders={"preset": preset},
+        )
+
+    def _targets_selector(self, current: list[str]) -> selector.SelectSelector:
+        targets = messaging.available_targets(self.hass)
+        # Keep targets that vanished selectable so editing does not drop them silently.
+        for target in current:
+            targets.setdefault(target, target)
+        return selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[selector.SelectOptionDict(value=k, label=v) for k, v in targets.items()],
+                multiple=True,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+            )
+        )
 
     async def async_step_edit_threshold(
         self, user_input: dict[str, Any] | None = None
@@ -380,11 +455,6 @@ class LevelWatchOptionsFlow(OptionsFlow):
         )
 
     def _threshold_schema(self, d: Mapping[str, Any]) -> vol.Schema:
-        targets = messaging.available_targets(self.hass)
-        # Keep targets that vanished selectable so editing does not drop them silently.
-        for target in d.get("targets") or []:
-            targets.setdefault(target, target)
-
         def suggested(key: str) -> dict[str, Any] | None:
             value = d.get(key)
             return None if value in (None, "") else {"suggested_value": value}
@@ -408,16 +478,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
                     selector.BooleanSelector()
                 ),
                 vol.Optional("targets", default=list(d.get("targets") or [])): (
-                    selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=[
-                                selector.SelectOptionDict(value=k, label=v)
-                                for k, v in targets.items()
-                            ],
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    )
+                    self._targets_selector(list(d.get("targets") or []))
                 ),
                 vol.Required("critical", default=d.get("critical", False)): (
                     selector.BooleanSelector()

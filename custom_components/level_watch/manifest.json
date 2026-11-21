@@ -9,12 +9,13 @@
   ],
   "config_flow": true,
   "dependencies": [
-    "http"
+    "http",
+    "websocket_api"
   ],
   "documentation": "https://github.com/berwil84afk/ha-level-watch",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/berwil84afk/ha-level-watch/issues",
   "requirements": [],
-  "version": "0.5.0"
+  "version": "0.6.0"
 }

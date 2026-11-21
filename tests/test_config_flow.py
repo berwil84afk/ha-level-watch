@@ -81,7 +81,7 @@ async def test_options_flow(hass: HomeAssistant, source) -> None:
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
-    assert result["menu_options"] == ["settings", "add_threshold"]
+    assert result["menu_options"] == ["settings", "add_threshold", "add_preset"]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "settings"}
     )

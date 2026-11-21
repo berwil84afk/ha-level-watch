@@ -5,7 +5,7 @@ Nothing in here imports Home Assistant, so the logic can be tested on its own.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -114,6 +114,77 @@ def next_threshold(
         if t.direction == BELOW and not active.get(t.id) and t.value < level
     ]
     return max(ahead, key=lambda t: t.value) if ahead else None
+
+
+# -- presets ------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PresetItem:
+    key: str
+    names: Mapping[str, str]  # language -> name
+    direction: str
+    color: tuple[int, int, int]
+    critical_allowed: bool = False  # the "critical" switch applies to this one
+
+
+PRESETS: dict[str, tuple[PresetItem, ...]] = {
+    "river": (
+        PresetItem("low", {"de": "Niedrigwasser", "en": "Low water"}, BELOW, (25, 118, 210)),
+        PresetItem("stage1", {"de": "Meldestufe 1", "en": "Warning level 1"}, ABOVE, (251, 192, 45)),
+        PresetItem("stage2", {"de": "Meldestufe 2", "en": "Warning level 2"}, ABOVE, (245, 124, 0)),
+        PresetItem(
+            "stage3", {"de": "Meldestufe 3", "en": "Warning level 3"}, ABOVE, (229, 57, 53), True
+        ),
+        PresetItem(
+            "stage4", {"de": "Meldestufe 4", "en": "Warning level 4"}, ABOVE, (142, 36, 170), True
+        ),
+    ),
+    "tank": (
+        PresetItem(
+            "empty", {"de": "Fast leer", "en": "Almost empty"}, BELOW, (229, 57, 53), True
+        ),
+        PresetItem("reserve", {"de": "Reserve", "en": "Reserve"}, BELOW, (245, 124, 0)),
+        PresetItem("full", {"de": "Voll", "en": "Full"}, ABOVE, (25, 118, 210)),
+    ),
+}
+PRESET_HYSTERESIS = {"river": 5.0, "tank": 2.0}
+
+
+def preset_thresholds(
+    preset: str,
+    values: Mapping[str, float | None],
+    *,
+    language: str | None,
+    notify: bool,
+    targets: Iterable[str],
+    critical: bool,
+    new_id: Callable[[], str],
+) -> list[dict[str, Any]]:
+    """Threshold dicts for the preset items that got a value."""
+    lang = "de" if (language or "").lower().startswith("de") else "en"
+    result = []
+    for item in PRESETS[preset]:
+        value = values.get(item.key)
+        if value is None:
+            continue
+        result.append(
+            {
+                "id": new_id(),
+                "name": item.names[lang],
+                "value": float(value),
+                "direction": item.direction,
+                "hysteresis": PRESET_HYSTERESIS[preset],
+                "color": list(item.color),
+                "notify": notify,
+                "targets": list(targets) if notify else [],
+                "critical": critical and item.critical_allowed,
+                "message": "",
+                "clear_message": True,
+                "repeat": 0,
+            }
+        )
+    return result
 
 
 # -- messages -----------------------------------------------------------------

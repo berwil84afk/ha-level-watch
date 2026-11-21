@@ -66,7 +66,8 @@
           "settings": "Sensor and trend settings",
           "add_threshold": "Add threshold",
           "edit_threshold": "Edit threshold",
-          "remove_threshold": "Remove thresholds"
+          "remove_threshold": "Remove thresholds",
+          "add_preset": "Add thresholds from a template"
         }
       },
       "edit_threshold": {
@@ -174,6 +175,34 @@
             }
           }
         }
+      },
+      "add_preset": {
+        "title": "Template",
+        "description": "Typical thresholds you only fill with values.",
+        "data": {
+          "preset": "Template"
+        }
+      },
+      "preset_values": {
+        "title": "Template values",
+        "description": "Enter the values you need in cm, leave the others empty. Names, colors and directions are set; you can change them later.",
+        "data": {
+          "low": "Low water (falls to/below)",
+          "stage1": "Warning level 1",
+          "stage2": "Warning level 2",
+          "stage3": "Warning level 3",
+          "stage4": "Warning level 4",
+          "empty": "Almost empty (falls to/below)",
+          "reserve": "Reserve (falls to/below)",
+          "full": "Full (rises to/above)",
+          "notify": "Send notification",
+          "targets": "Notify via",
+          "critical": "Critical (Companion app)"
+        },
+        "data_description": {
+          "critical": "Only for warning levels 3 and 4 or almost empty.",
+          "targets": "Companion app, persistent notification in Home Assistant, Telegram, e-mail or any other notify service."
+        }
       }
     },
     "error": {
@@ -183,7 +212,8 @@
       "targets_required": "Choose at least one target.",
       "tank_vertical_cylinder": "A vertical cylinder needs the diameter.",
       "tank_horizontal_cylinder": "A horizontal cylinder needs diameter and length.",
-      "tank_box": "A box needs length and width."
+      "tank_box": "A box needs length and width.",
+      "preset_empty": "Enter at least one value."
     }
   },
   "selector": {
@@ -221,6 +251,12 @@
         "vertical_cylinder": "Vertical cylinder",
         "horizontal_cylinder": "Horizontal cylinder",
         "box": "Box"
+      }
+    },
+    "preset": {
+      "options": {
+        "river": "River gauge (low water, warning levels 1–4)",
+        "tank": "Tank (almost empty, reserve, full)"
       }
     }
   },

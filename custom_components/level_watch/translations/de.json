@@ -66,7 +66,8 @@
           "settings": "Sensor- und Tendenz-Einstellungen",
           "add_threshold": "Schwellenwert hinzufügen",
           "edit_threshold": "Schwellenwert bearbeiten",
-          "remove_threshold": "Schwellenwerte löschen"
+          "remove_threshold": "Schwellenwerte löschen",
+          "add_preset": "Schwellen aus Vorlage hinzufügen"
         }
       },
       "edit_threshold": {
@@ -174,6 +175,34 @@
             }
           }
         }
+      },
+      "add_preset": {
+        "title": "Vorlage",
+        "description": "Typische Schwellen, die du nur noch mit Werten füllst.",
+        "data": {
+          "preset": "Vorlage"
+        }
+      },
+      "preset_values": {
+        "title": "Werte der Vorlage",
+        "description": "Trag die Werte in cm ein, die du brauchst, die anderen bleiben leer. Name, Farbe und Richtung sind vorgegeben; ändern kannst du sie danach.",
+        "data": {
+          "low": "Niedrigwasser (fällt auf/unter)",
+          "stage1": "Meldestufe 1",
+          "stage2": "Meldestufe 2",
+          "stage3": "Meldestufe 3",
+          "stage4": "Meldestufe 4",
+          "empty": "Fast leer (fällt auf/unter)",
+          "reserve": "Reserve (fällt auf/unter)",
+          "full": "Voll (steigt auf/über)",
+          "notify": "Meldung senden",
+          "targets": "Melden über",
+          "critical": "Kritisch (Companion App)"
+        },
+        "data_description": {
+          "critical": "Gilt nur für Meldestufe 3 und 4 bzw. Fast leer.",
+          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer notify-Dienst."
+        }
       }
     },
     "error": {
@@ -183,7 +212,8 @@
       "targets_required": "Wähle mindestens ein Ziel.",
       "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
       "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
-      "tank_box": "Ein Quader braucht Länge und Breite."
+      "tank_box": "Ein Quader braucht Länge und Breite.",
+      "preset_empty": "Trag mindestens einen Wert ein."
     }
   },
   "selector": {
@@ -221,6 +251,12 @@
         "vertical_cylinder": "Stehender Zylinder",
         "horizontal_cylinder": "Liegender Zylinder",
         "box": "Quader"
+      }
+    },
+    "preset": {
+      "options": {
+        "river": "Flusspegel (Niedrigwasser, Meldestufen 1–4)",
+        "tank": "Tank (fast leer, Reserve, voll)"
       }
     }
   },

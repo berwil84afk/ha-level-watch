@@ -1,6 +1,6 @@
 # Todo
 
-- [ ] **Schwellenwerte über die Karte einrichten**
+- [x] **Schwellenwerte über die Karte einrichten** (0.6.0)
   Schwellen direkt in der Level-Watch-Karte anlegen, ändern und löschen, statt nur unter *Geräte & Dienste → Konfigurieren*.
   Ideen dazu:
   - Die Integration bietet einen WebSocket-Befehl, z. B. `level_watch/thresholds/update`, der die Schwellen in den Optionen speichert. Danach lädt der Eintrag wie beim Options-Flow neu.
