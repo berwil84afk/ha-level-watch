@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.0";
+const CARD_VERSION = "0.7.1";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -17,7 +17,7 @@ const TEXT = {
     unavailable: "Sensor nicht verfügbar", no_data: "Noch keine Daten",
     not_found: "Entität nicht gefunden", not_level_watch: "Keine Level-Watch-Entität",
     day: "Tag", days: "Tage", h: "h", min_u: "min", history: "Verlauf",
-    entity: "Entität", title: "Titel", mode: "Darstellung", history_hours: "Verlauf (Stunden, 0 = aus)",
+    entity: "Entität", title: "Titel", mode: "Darstellung", history_hours: "Verlauf (Stunden)", show_history: "Verlauf anzeigen",
     mode_auto: "Automatisch", mode_water: "Wasserpegel", mode_tank: "Tank",
     style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
     style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
@@ -43,7 +43,7 @@ const TEXT = {
     unavailable: "Sensor unavailable", no_data: "No data yet",
     not_found: "Entity not found", not_level_watch: "Not a Level Watch entity",
     day: "day", days: "days", h: "h", min_u: "min", history: "History",
-    entity: "Entity", title: "Title", mode: "Display", history_hours: "History (hours, 0 = off)",
+    entity: "Entity", title: "Title", mode: "Display", history_hours: "History (hours)", show_history: "Show history",
     mode_auto: "Automatic", mode_water: "Water level", mode_tank: "Tank",
     style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
     style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
@@ -146,7 +146,8 @@ class LevelWatchCard extends HTMLElement {
           name: "mode",
           selector: { select: { mode: "dropdown", options: ["auto", "water", "tank"].map((v) => ({ value: v, label: t[`mode_${v}`] })) } },
         },
-        { name: "history_hours", selector: { number: { min: 0, max: 168, mode: "box" } } },
+        { name: "show_history", selector: { boolean: {} } },
+        { name: "history_hours", selector: { number: { min: 1, max: 168, mode: "box" } } },
         { name: "forecast_hours", selector: { number: { min: 1, max: 168, mode: "box" } } },
       ],
       computeLabel: (schema) => t[schema.name] || schema.name,
@@ -155,7 +156,9 @@ class LevelWatchCard extends HTMLElement {
 
   setConfig(config) {
     if (!config || !config.entity) throw new Error("entity is required");
-    this._config = { style: "forecast", mode: "auto", history_hours: 24, forecast_hours: 12, ...config };
+    this._config = {
+      style: "forecast", mode: "auto", show_history: true, history_hours: 24, forecast_hours: 12, ...config,
+    };
     if (!STYLES.includes(this._config.style)) this._config.style = "forecast";
     this._renderKey = "";
     this._history = null;
@@ -177,13 +180,21 @@ class LevelWatchCard extends HTMLElement {
     if (style === "compact") return { columns: 6, rows: 2, min_columns: 3, min_rows: 2 };
     if (style === "ring") return { columns: 12, rows: 3, min_columns: 6, min_rows: 3 };
     if (style === "forecast") return { columns: 12, rows: 5, min_columns: 6, min_rows: 4 };
-    return { columns: 12, rows: this._config?.history_hours ? 5 : 4, min_columns: 6, min_rows: 3 };
+    return { columns: 12, rows: this._historyHours() ? 5 : 4, min_columns: 6, min_rows: 3 };
   }
 
   // -- data ---------------------------------------------------------------------
 
+  /** Hours of history to show; 0 when switched off (also the old "0 = off"). */
+  _historyHours() {
+    const c = this._config || {};
+    if (c.show_history === false) return 0;
+    const hours = Number(c.history_hours ?? 24);
+    return Number.isFinite(hours) && hours > 0 ? hours : 0;
+  }
+
   async _fetchHistory(entityId) {
-    const hours = Number(this._config.history_hours) || 0;
+    const hours = this._historyHours();
     if (!hours || !this._hass.callWS) return;
     const now = Date.now();
     if (now - this._historyFetched < 5 * 60 * 1000) return;
@@ -590,9 +601,9 @@ class LevelWatchCard extends HTMLElement {
 
   _forecastChart(c) {
     const { a, level, hasLevel, color, t } = c;
-    const hist = Number(this._config.history_hours) || 0;
+    const hist = this._historyHours();
     const fh = Number(this._config.forecast_hours) || 12;
-    const pts = this._history || [];
+    const pts = hist ? this._history || [] : [];
     const now = Date.now();
     const t0 = now - (hist || 6) * 3600e3;
     const t1 = now + fh * 3600e3;
@@ -906,8 +917,8 @@ class LevelWatchCard extends HTMLElement {
     let outline;
     let box;
     if (a.shape === "horizontal_cylinder") {
-      box = { x: 30, y: 40, w: 140, h: 140 };
-      outline = `<circle cx="100" cy="110" r="70"/>`;
+      box = { x: 44, y: 40, w: 140, h: 140 };
+      outline = `<circle cx="114" cy="110" r="70"/>`;
     } else if (a.shape === "vertical_cylinder") {
       box = { x: 45, y: 24, w: 110, h: 180 };
       outline = `<path d="M45 34 a55 10 0 0 1 110 0 V194 a55 10 0 0 1 -110 0 Z"/>`;
@@ -919,8 +930,19 @@ class LevelWatchCard extends HTMLElement {
     const ly = Number.isFinite(level) ? y(level) : box.y + box.h;
     const lines = (a.thresholds || []).map((th) => {
       const ty = y(th.value);
-      return `<line x1="${box.x - 10}" x2="${box.x + box.w + 10}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`;
+      return `<line x1="${box.x - 2}" x2="${box.x + box.w + 8}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`;
     }).join("");
+    // Scale beside the tank, in the unit of the level (cm or %).
+    const step = niceStep(topH / 5);
+    let scale = `<line x1="${box.x - 6}" x2="${box.x - 6}" y1="${box.y}" y2="${box.y + box.h}" class="tick minor"/>`;
+    for (let v = 0; v <= topH + step * 0.01; v += step) {
+      const ty = y(v);
+      scale += `<line x1="${box.x - 10}" x2="${box.x - 6}" y1="${ty}" y2="${ty}" class="tick"/>`
+        + `<text x="${box.x - 13}" y="${ty + 3}" text-anchor="end" class="tlabel">${Math.round(v)}</text>`;
+      const half = y(v + step / 2);
+      if (v + step / 2 <= topH) scale += `<line x1="${box.x - 8}" x2="${box.x - 6}" y1="${half}" y2="${half}" class="tick minor"/>`;
+    }
+    scale += `<text x="${box.x - 13}" y="${box.y - 8}" text-anchor="end" class="tlabel">${esc(unitOf(a))}</text>`;
     return `
       <svg viewBox="0 0 200 220" class="tank" aria-hidden="true">
         <defs>
@@ -935,6 +957,7 @@ class LevelWatchCard extends HTMLElement {
         <g clip-path="url(#lwTank)">
           ${waves(ly, box.x, box.w, box.y + box.h + 12, "url(#lwFill)")}
         </g>
+        ${scale}
         ${lines}
         <g class="rim">${outline}</g>
       </svg>`;
@@ -943,7 +966,7 @@ class LevelWatchCard extends HTMLElement {
   // -- history ------------------------------------------------------------------
 
   _sparkline(a, color) {
-    if (!Number(this._config.history_hours)) return "";
+    if (!this._historyHours()) return "";
     const pts = this._history || [];
     if (pts.length < 2) return `<div class="spark empty"></div>`;
     const w = 300;

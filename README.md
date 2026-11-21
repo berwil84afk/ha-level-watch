@@ -170,7 +170,8 @@ entity: sensor.rhein_pegel   # oder eine andere Entität desselben Level-Watch-G
 style: forecast              # forecast, classic, ring oder compact
 title: Rhein                 # optional, sonst der Gerätename
 mode: auto                   # auto, water oder tank
-history_hours: 24            # Verlauf; 0 blendet ihn bei classic aus
+show_history: true           # false blendet den Verlauf aus
+history_hours: 24            # Länge des Verlaufs
 forecast_hours: 12           # wie weit die Prognose reicht
 ```
 
