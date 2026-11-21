@@ -2,6 +2,18 @@
 
 # Level Watch für Home Assistant
 
+<p align="center">
+  <a href="https://github.com/berwil84afk/ha-level-watch/releases"><img src="https://img.shields.io/github/v/release/berwil84afk/ha-level-watch" alt="Release"></a>
+  <picture><img src="https://img.shields.io/github/last-commit/berwil84afk/ha-level-watch" alt="Last commit"></picture>
+  <picture><img src="https://img.shields.io/github/commit-activity/m/berwil84afk/ha-level-watch" alt="Commit activity"></picture>
+  <a href="https://github.com/berwil84afk/ha-level-watch/issues"><img src="https://img.shields.io/github/issues/berwil84afk/ha-level-watch" alt="Issues"></a>
+  <picture><img src="https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Active%20installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.level_watch.total" alt="Active installations"></picture>
+  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom"></a>
+  <picture><img src="https://img.shields.io/badge/Home%20Assistant-2025.2%2B-18BCF2.svg" alt="Home Assistant 2025.2+"></picture>
+  <a href="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml"><img src="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
+  <a href="https://buymeacoffee.com/berwil84afk"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+</p>
+
 [English](README.md) · **Deutsch** · [Änderungsprotokoll](CHANGELOG.de.md)
 
 Level Watch überwacht einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) mit einem Sensor, den du schon hast. Die Integration berechnet die Tendenz, warnt dich bei Schwellen, die du festlegst, sagt voraus, wann die nächste erreicht wird, und bringt eine eigene Dashboard-Karte mit.
@@ -210,6 +222,14 @@ pytest
 Die Karte ohne Home Assistant ansehen: Starte `python -m http.server 8766` im Repository und öffne `http://127.0.0.1:8766/dev/preview.html`. Mit `?style=ring` (oder einem anderen Stil) siehst du nur diesen Stil.
 
 Die Screenshots in diesem README entstehen mit `python dev/make_screenshots.py`, während dieser Server läuft. Dafür brauchst du Chrome oder Edge und Pillow.
+
+## Unterstützung
+
+Fehler gefunden oder eine Idee? Leg ein [Issue](https://github.com/berwil84afk/ha-level-watch/issues) an.
+
+Wenn dir Level Watch hilft, kannst du mir einen Kaffee spendieren:
+
+<a href="https://buymeacoffee.com/berwil84afk"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 
 ## Lizenz
 

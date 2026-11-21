@@ -2,6 +2,18 @@
 
 # Level Watch for Home Assistant
 
+<p align="center">
+  <a href="https://github.com/berwil84afk/ha-level-watch/releases"><img src="https://img.shields.io/github/v/release/berwil84afk/ha-level-watch" alt="Release"></a>
+  <picture><img src="https://img.shields.io/github/last-commit/berwil84afk/ha-level-watch" alt="Last commit"></picture>
+  <picture><img src="https://img.shields.io/github/commit-activity/m/berwil84afk/ha-level-watch" alt="Commit activity"></picture>
+  <a href="https://github.com/berwil84afk/ha-level-watch/issues"><img src="https://img.shields.io/github/issues/berwil84afk/ha-level-watch" alt="Issues"></a>
+  <picture><img src="https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Active%20installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.level_watch.total" alt="Active installations"></picture>
+  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom"></a>
+  <picture><img src="https://img.shields.io/badge/Home%20Assistant-2025.2%2B-18BCF2.svg" alt="Home Assistant 2025.2+"></picture>
+  <a href="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml"><img src="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
+  <a href="https://buymeacoffee.com/berwil84afk"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+</p>
+
 **English** · [Deutsch](README.de.md) · [Changelog](CHANGELOG.md)
 
 Level Watch monitors a **water level** (river, pond, well) or a **tank** (cistern, heating oil) using a sensor you already have. It works out the trend, warns you at thresholds you set, forecasts when the next one will be reached and comes with its own dashboard card.
@@ -210,6 +222,14 @@ pytest
 To see the card without Home Assistant, run `python -m http.server 8766` in the repository and open `http://127.0.0.1:8766/dev/preview.html`. Add `?style=ring` (or another style) to show only one style.
 
 The screenshots in this README are made with `python dev/make_screenshots.py` while that server is running. It needs Chrome or Edge and Pillow.
+
+## Support
+
+Found a bug or have an idea? Open an [issue](https://github.com/berwil84afk/ha-level-watch/issues).
+
+If Level Watch is useful to you, you can buy me a coffee:
+
+<a href="https://buymeacoffee.com/berwil84afk"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 
 ## Licence
 
