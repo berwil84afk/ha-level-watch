@@ -6,7 +6,7 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
-## [0.7.8] - 2026-11-22
+## [0.7.8] - 2026-11-21
 
 ### Neu
 - HACS-Prüfung im Workflow des Repositorys, als Vorbereitung für die Aufnahme in die HACS-Standard-Repositories.
