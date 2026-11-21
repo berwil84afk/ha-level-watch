@@ -227,7 +227,7 @@ def _source_unit(hass: HomeAssistant, data: Mapping[str, Any]) -> str | None:
     """The chosen source unit, or the sensor's own one for automatic."""
     unit = data.get(CONF_SOURCE_UNIT, UNIT_AUTO)
     if unit != UNIT_AUTO:
-        return unit
+        return calc.normalize_unit(unit)
     state = hass.states.get(data[CONF_SOURCE])
     return state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
 

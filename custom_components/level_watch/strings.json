@@ -245,7 +245,7 @@
         "m": "m",
         "in": "in",
         "ft": "ft",
-        "%": "% (fill level)"
+        "percent": "% (fill level)"
       }
     },
     "shape": {

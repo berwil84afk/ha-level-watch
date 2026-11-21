@@ -51,7 +51,9 @@ MODES: Final = [MODE_LEVEL, MODE_DISTANCE]
 
 UNIT_AUTO: Final = "auto"
 UNIT_PERCENT: Final = "%"
-SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft", UNIT_PERCENT]
+# Translation keys may not contain "%", so the option is called "percent".
+SOURCE_UNIT_PERCENT: Final = "percent"
+SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft", SOURCE_UNIT_PERCENT]
 
 DEFAULT_NAME: Final = "Pegel"
 DEFAULT_OFFSET: Final = 0.0

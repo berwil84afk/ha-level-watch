@@ -150,7 +150,7 @@ class Settings:
         return cls(
             name=conf.get(CONF_NAME) or DEFAULT_NAME,
             source=conf[CONF_SOURCE],
-            source_unit=conf.get(CONF_SOURCE_UNIT) or UNIT_AUTO,
+            source_unit=calc.normalize_unit(conf.get(CONF_SOURCE_UNIT)) or UNIT_AUTO,
             kind=kind,
             distance_mode=conf.get(CONF_MODE, MODE_LEVEL) == MODE_DISTANCE,
             sensor_height=None if height is None else float(height),

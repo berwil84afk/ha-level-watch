@@ -43,6 +43,11 @@ def is_supported_unit(unit: str | None) -> bool:
     return unit == PERCENT or is_length_unit(unit)
 
 
+def normalize_unit(unit: str | None) -> str | None:
+    """Map the "percent" option of the unit selector to "%"."""
+    return PERCENT if unit == "percent" else unit
+
+
 def level_unit(source_unit: str | None) -> str:
     """Unit the levels are kept in for a source with this unit."""
     return PERCENT if source_unit == PERCENT else "cm"

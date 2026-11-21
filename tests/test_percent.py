@@ -62,6 +62,25 @@ async def test_flow_detects_percent(hass: HomeAssistant, source) -> None:
     assert result["data"]["level_unit"] == "%"
 
 
+async def test_percent_chosen_by_hand(hass: HomeAssistant, source) -> None:
+    source("55", unit=None)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "Öltank", "source_entity": SOURCE, "source_unit": "percent", "kind": "tank",
+         "measurement_mode": "level", "offset": 0, "reference_min": 0,
+         "tank": {"shape": "none"}},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["level_unit"] == "%"
+    await hass.async_block_till_done()
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    level_id = er.async_get(hass).async_get_entity_id("sensor", DOMAIN, f"{entry.entry_id}_level")
+    assert float(hass.states.get(level_id).state) == 55
+
+
 async def test_length_source_keeps_cm(hass: HomeAssistant, source) -> None:
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
