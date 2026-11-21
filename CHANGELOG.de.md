@@ -6,6 +6,11 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.7.8] - 2026-11-22
+
+### Neu
+- HACS-Prüfung im Workflow des Repositorys, als Vorbereitung für die Aufnahme in die HACS-Standard-Repositories.
+
 ## [0.7.7] - 2026-11-21
 
 ### Geändert
@@ -101,6 +106,7 @@ Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Di
 ### Neu
 - Erste Version: Pegel, Tendenz, Änderungsrate, Minimum, Maximum und Änderung über 24 Stunden sowie Datenqualität aus jedem Längensensor.
 
+[0.7.8]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.8
 [0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7
 [0.7.6]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.6
 [0.7.5]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.5
