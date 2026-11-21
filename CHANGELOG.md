@@ -6,6 +6,14 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.7.7] - 2026-11-21
+
+### Changed
+- Card: the waves now always move, even when "reduce motion" is switched on in the system (for example with Windows animation effects off).
+
+### Fixed
+- Card: the wave animation no longer starts over with every new reading. It carries on smoothly, also with sensors that report very often.
+
 ## [0.7.6] - 2026-11-21
 
 ### Added
@@ -93,6 +101,7 @@ Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The fir
 ### Added
 - First version: level, trend, rate of change, minimum, maximum and change over 24 hours, and data quality from any length sensor.
 
+[0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7
 [0.7.6]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.6
 [0.7.5]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.5
 [0.7.4]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.4
