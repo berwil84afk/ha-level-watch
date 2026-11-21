@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.6.0";
+const CARD_VERSION = "0.6.1";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -540,13 +540,24 @@ class LevelWatchCard extends HTMLElement {
     const x = (v) => Math.max(0, Math.min(w, ((v - lo) / (hi - lo)) * w));
     const bounds = [lo, ...ths.map((th) => th.value).filter((v) => v > lo && v < hi), hi]
       .sort((p, q) => p - q);
-    const current = hasLevel ? stageColorAt(ths, level, NORMAL_ZONE) : null;
+    // Every zone keeps its full color (dimming turns colors muddy on dark
+    // themes); the zone holding the level is drawn taller instead.
     let rects = "";
+    let hereDone = false;
     for (let i = 0; i < bounds.length - 1; i += 1) {
       const mid = (bounds[i] + bounds[i + 1]) / 2;
-      const col = stageColorAt(ths, mid, NORMAL_ZONE);
-      const here = hasLevel && level >= bounds[i] && level <= bounds[i + 1];
-      rects += `<rect x="${x(bounds[i])}" y="14" width="${Math.max(0, x(bounds[i + 1]) - x(bounds[i]))}" height="12" fill="${esc(col)}" opacity="${here || col === current && here ? 1 : 0.4}"/>`;
+      const stage = stageAt(ths, mid);
+      const col = stage ? stage.color : NORMAL_ZONE;
+      const tip = `${stage ? stage.name : c.t.normal} · ${fmt(bounds[i], 0)}–${fmt(bounds[i + 1], 0)} cm`;
+      const here = hasLevel && !hereDone && level >= bounds[i] && level <= bounds[i + 1];
+      if (here) hereDone = true;
+      const x0 = x(bounds[i]) + (i ? 1 : 0);
+      const x1 = x(bounds[i + 1]) - (i < bounds.length - 2 ? 1 : 0);
+      const [y0, hgt] = here ? [12, 16] : [16, 8];
+      // An invisible full-height strip makes the thin zones easy to hover.
+      rects += `<g class="zone"><title>${esc(tip)}</title>`
+        + `<rect x="${x0}" y="4" width="${Math.max(0, x1 - x0)}" height="32" fill="transparent"/>`
+        + `<rect x="${x0}" y="${y0}" width="${Math.max(0, x1 - x0)}" height="${hgt}" rx="${here ? 4 : 3}" fill="${esc(col)}" class="zfill${here ? "" : " zoneoff"}"/></g>`;
     }
     let marker = "";
     if (hasLevel) {
@@ -573,8 +584,7 @@ class LevelWatchCard extends HTMLElement {
       lastX = lx;
     }
     return `<svg class="zones" viewBox="0 0 ${w} 48" aria-hidden="true">
-      <defs><clipPath id="lwZones"><rect x="0" y="14" width="${w}" height="12" rx="6"/></clipPath></defs>
-      <g clip-path="url(#lwZones)">${rects}</g>${marker}${labels}</svg>`;
+      ${rects}${marker}${labels}</svg>`;
   }
 
   _forecastChart(c) {
@@ -1061,6 +1071,15 @@ function segmentArea(d, h) {
   return r * r * Math.acos((r - hh) / r) - (r - hh) * Math.sqrt(Math.max(0, 2 * r * hh - hh * hh));
 }
 
+/** The stage that would be active at value v (hysteresis ignored), or null. */
+function stageAt(ths, v) {
+  const above = ths.filter((x) => x.direction === "above" && v >= x.value);
+  if (above.length) return above.reduce((m, x) => (x.value > m.value ? x : m));
+  const below = ths.filter((x) => x.direction === "below" && v <= x.value);
+  if (below.length) return below.reduce((m, x) => (x.value < m.value ? x : m));
+  return null;
+}
+
 /** Color of the stage that would be active at value v (hysteresis ignored). */
 function stageColorAt(ths, v, normal) {
   const above = ths.filter((x) => x.direction === "above" && v >= x.value);
@@ -1142,6 +1161,10 @@ const STYLE = `<style>
   .valrow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .zones { width: 100%; height: auto; display: block; overflow: visible; }
   .zl { font-size: 9px; fill: var(--secondary-text-color); }
+  .zoneoff { opacity: 0.85; }
+  .zone { cursor: help; }
+  .zone .zfill { transition: opacity .15s, filter .15s; }
+  .zone:hover .zfill { opacity: 1; filter: brightness(1.15); }
   .mark { stroke: var(--primary-text-color); stroke-width: 2; }
   .markfill { fill: var(--primary-text-color); }
   .proj { stroke: var(--primary-text-color); stroke-width: 1.5; stroke-dasharray: 3 2; }
