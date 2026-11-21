@@ -79,6 +79,11 @@ async def test_options_flow(hass: HomeAssistant, source) -> None:
     await hass.async_block_till_done()
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["settings", "add_threshold"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
     assert result["type"] is FlowResultType.FORM
     options = {
         k: v for k, v in USER_INPUT.items() if k not in ("name", "reference_max")

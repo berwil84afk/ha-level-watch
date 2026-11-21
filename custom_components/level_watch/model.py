@@ -30,7 +30,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import calc
+from . import calc, messaging
 from .const import (
     CONF_ADVANCED,
     CONF_KIND,
@@ -45,6 +45,7 @@ from .const import (
     CONF_SOURCE,
     CONF_SOURCE_UNIT,
     CONF_STALE_TIMEOUT,
+    CONF_THRESHOLDS,
     CONF_TREND_DEADBAND,
     CONF_TREND_WINDOW,
     DEFAULT_MAX_JUMP,
@@ -56,6 +57,7 @@ from .const import (
     DEFAULT_TREND_DEADBAND,
     DEFAULT_TREND_WINDOW,
     DOMAIN,
+    EVENT_THRESHOLD,
     HISTORY_HOURS,
     KIND_WATER,
     MIN_SAMPLE_SPACING,
@@ -70,6 +72,7 @@ from .const import (
     TICK_INTERVAL,
     UNIT_AUTO,
 )
+from .thresholds import Threshold, format_message, load_thresholds, next_threshold, stage
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,6 +100,7 @@ class Settings:
     smoothing: float  # seconds
     stale_timeout: float  # seconds
     max_jump: float  # cm
+    thresholds: tuple[Threshold, ...] = ()
 
     @classmethod
     def from_config(cls, conf: Mapping[str, Any]) -> Settings:
@@ -125,6 +129,7 @@ class Settings:
             smoothing=opt(CONF_SMOOTHING, DEFAULT_SMOOTHING) * 60,
             stale_timeout=opt(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT) * 60,
             max_jump=opt(CONF_MAX_JUMP, DEFAULT_MAX_JUMP),
+            thresholds=tuple(load_thresholds(conf.get(CONF_THRESHOLDS))),
         )
 
 
@@ -142,6 +147,10 @@ class Snapshot:
     change_24h: float | None = None
     quality: str = QUALITY_NO_DATA
     last_reading: datetime | None = None
+    stage: Threshold | None = None
+    active: Mapping[str, bool] | None = None
+    next_threshold: Threshold | None = None
+    hours_to_next: float | None = None
 
 
 class LevelWatchModel:
@@ -160,11 +169,16 @@ class LevelWatchModel:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}"
         )
         self._listeners: list[Callable[[], None]] = []
+        # Filled by the entities; used to remove entities of deleted thresholds.
+        self.unique_ids: set[str] = set()
         self._unsubs: list[CALLBACK_TYPE] = []
         self._source_available = False
         self._last_reading: float | None = None
         self._pending_jump: list[float] = []
         self._warned_unit = False
+        # Threshold state survives restarts so nothing is announced twice.
+        self._active: dict[str, bool] = {}
+        self._last_sent: dict[str, float] = {}
 
     # -- lifecycle -----------------------------------------------------------
 
@@ -177,6 +191,13 @@ class LevelWatchModel:
         try:
             self.history.load(data.get("samples", []), now)
             self._last_reading = data.get("last_reading")
+            known = {t.id for t in self.settings.thresholds}
+            self._active = {
+                k: bool(v) for k, v in (data.get("active") or {}).items() if k in known
+            }
+            self._last_sent = {
+                k: float(v) for k, v in (data.get("last_sent") or {}).items() if k in known
+            }
         except (TypeError, ValueError):
             _LOGGER.warning("Ignoring unreadable history of %s", self.settings.name)
             self.history.load([], now)
@@ -234,6 +255,7 @@ class LevelWatchModel:
         ):
             self.history.add(ts, last.value)
         self._recompute(ts)
+        self._repeat_messages(ts)
 
     @callback
     def _handle_state(self, state: State | None) -> None:
@@ -306,13 +328,22 @@ class LevelWatchModel:
 
         level = calc.smoothed(h, now, s.smoothing)
         rate = calc.rate_per_hour(h, now, s.trend_window)
+        trend = calc.trend(rate, s.trend_deadband)
         stats = calc.period_stats(h, now, HISTORY_HOURS * 3600)
+        if level is not None and quality == QUALITY_OK:
+            self._evaluate_thresholds(now, level, trend, rate)
+        upcoming = None
+        hours = None
+        if level is not None and trend in (calc.RISING, calc.FALLING):
+            upcoming = next_threshold(s.thresholds, self._active, level, rate)
+            if upcoming is not None and rate:
+                hours = (upcoming.value - level) / rate
         self.snapshot = Snapshot(
             level=level,
             raw_level=last.value if last else None,
             percent=None if level is None else calc.percent(level, s.ref_min, s.ref_max),
             rate=rate,
-            trend=calc.trend(rate, s.trend_deadband),
+            trend=trend,
             min_24h=stats.minimum,
             max_24h=stats.maximum,
             change_24h=stats.change,
@@ -322,12 +353,102 @@ class LevelWatchModel:
                 if self._last_reading is not None
                 else None
             ),
+            stage=stage(s.thresholds, self._active),
+            active=dict(self._active),
+            next_threshold=upcoming,
+            hours_to_next=hours,
         )
         for update in list(self._listeners):
             update()
 
     def _data_to_save(self) -> dict[str, Any]:
-        return {"samples": self.history.dump(), "last_reading": self._last_reading}
+        return {
+            "samples": self.history.dump(),
+            "last_reading": self._last_reading,
+            "active": self._active,
+            "last_sent": self._last_sent,
+        }
+
+    # -- thresholds ----------------------------------------------------------
+
+    @callback
+    def _evaluate_thresholds(
+        self, now: float, level: float, trend: str | None, rate: float | None
+    ) -> None:
+        changed = False
+        for th in self.settings.thresholds:
+            was = self._active.get(th.id)
+            active = th.is_active(level, bool(was))
+            if was is not None and active == was:
+                continue
+            self._active[th.id] = active
+            changed = True
+            if was is None and not active:
+                continue  # first look at a new threshold, nothing to report
+            self.hass.bus.async_fire(
+                EVENT_THRESHOLD,
+                {
+                    "entry_id": self.entry_id,
+                    "name": self.settings.name,
+                    "threshold_id": th.id,
+                    "threshold": th.name,
+                    "direction": th.direction,
+                    "value": th.value,
+                    "active": active,
+                    "level": round(level, 2),
+                },
+            )
+            if th.notify and (active or th.clear_message):
+                self._send(th, now, level, trend, rate, cleared=not active)
+        if changed:
+            self._store.async_delay_save(self._data_to_save, 1)
+
+    @callback
+    def _repeat_messages(self, now: float) -> None:
+        snap = self.snapshot
+        if snap.level is None or snap.quality != QUALITY_OK:
+            return
+        for th in self.settings.thresholds:
+            if not (th.notify and th.repeat > 0 and self._active.get(th.id)):
+                continue
+            if now - self._last_sent.get(th.id, 0) >= th.repeat * 60:
+                self._send(th, now, snap.level, snap.trend, snap.rate, cleared=False)
+                self._store.async_delay_save(self._data_to_save, 1)
+
+    @callback
+    def _send(
+        self,
+        th: Threshold,
+        now: float,
+        level: float,
+        trend: str | None,
+        rate: float | None,
+        *,
+        cleared: bool,
+    ) -> None:
+        message = format_message(
+            th.message,
+            language=self.hass.config.language,
+            name=self.settings.name,
+            threshold=th,
+            level=level,
+            trend=trend,
+            rate=rate,
+            cleared=cleared,
+        )
+        self._last_sent[th.id] = now
+        self.hass.async_create_task(
+            messaging.async_send(
+                self.hass,
+                th.targets,
+                title=self.settings.name,
+                message=message,
+                tag=f"{DOMAIN}_{self.entry_id}_{th.id}",
+                critical=th.critical,
+                cleared=cleared,
+            ),
+            eager_start=True,
+        )
 
 
 def _reading_time(state: State) -> float:

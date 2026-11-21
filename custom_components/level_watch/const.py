@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "level_watch"
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.2.0"
 
 # Basic settings
 CONF_NAME: Final = "name"
@@ -17,6 +17,9 @@ CONF_SENSOR_HEIGHT: Final = "sensor_height"
 CONF_OFFSET: Final = "offset"
 CONF_REF_MIN: Final = "reference_min"
 CONF_REF_MAX: Final = "reference_max"
+
+CONF_THRESHOLDS: Final = "thresholds"
+EVENT_THRESHOLD: Final = "level_watch_threshold"
 
 # Advanced settings (options flow section)
 CONF_ADVANCED: Final = "advanced"

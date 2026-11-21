@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from uuid import uuid4
 
 import voluptuous as vol
 
@@ -18,7 +19,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 
-from . import calc
+from . import calc, messaging
 from .const import (
     CONF_ADVANCED,
     CONF_KIND,
@@ -33,6 +34,7 @@ from .const import (
     CONF_SOURCE,
     CONF_SOURCE_UNIT,
     CONF_STALE_TIMEOUT,
+    CONF_THRESHOLDS,
     CONF_TREND_DEADBAND,
     CONF_TREND_WINDOW,
     DEFAULT_MAX_JUMP,
@@ -51,6 +53,13 @@ from .const import (
     MODES,
     SOURCE_UNITS,
     UNIT_AUTO,
+)
+from .thresholds import (
+    ABOVE,
+    DEFAULT_ABOVE_COLOR,
+    DEFAULT_BELOW_COLOR,
+    DEFAULT_HYSTERESIS,
+    DIRECTIONS,
 )
 
 
@@ -198,9 +207,28 @@ class LevelWatchConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class LevelWatchOptionsFlow(OptionsFlow):
-    """Change the source, geometry and trend settings."""
+    """Change the settings and manage the thresholds."""
+
+    def __init__(self) -> None:
+        self._edit_id: str | None = None
+
+    @property
+    def _options(self) -> dict[str, Any]:
+        return dict(self.config_entry.options)
+
+    @property
+    def _thresholds(self) -> list[dict[str, Any]]:
+        return [dict(t) for t in self.config_entry.options.get(CONF_THRESHOLDS, [])]
 
     async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        menu = ["settings", "add_threshold"]
+        if self._thresholds:
+            menu += ["edit_threshold", "remove_threshold"]
+        return self.async_show_menu(step_id="init", menu_options=menu)
+
+    async def async_step_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         current = {**self.config_entry.data, **self.config_entry.options}
@@ -208,12 +236,155 @@ class LevelWatchOptionsFlow(OptionsFlow):
         if user_input is not None:
             errors = _validate(self.hass, user_input)
             if not errors:
-                return self.async_create_entry(data=_with_cleared_optionals(user_input))
+                return self.async_create_entry(
+                    data={**self._options, **_with_cleared_optionals(user_input)}
+                )
             current = {**current, **user_input}
         schema = _basic_schema(current, with_name=False)
         schema[vol.Required(CONF_ADVANCED)] = section(
             _advanced_schema(current), {"collapsed": True}
         )
         return self.async_show_form(
-            step_id="init", data_schema=vol.Schema(schema), errors=errors
+            step_id="settings", data_schema=vol.Schema(schema), errors=errors
         )
+
+    # -- thresholds ------------------------------------------------------------
+
+    async def async_step_add_threshold(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        self._edit_id = None
+        return await self.async_step_threshold()
+
+    async def async_step_edit_threshold(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            self._edit_id = user_input["threshold"]
+            return await self.async_step_threshold()
+        return self.async_show_form(
+            step_id="edit_threshold",
+            data_schema=vol.Schema(
+                {vol.Required("threshold"): self._threshold_picker(multiple=False)}
+            ),
+        )
+
+    async def async_step_remove_threshold(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            drop = set(user_input.get("thresholds") or [])
+            kept = [t for t in self._thresholds if t["id"] not in drop]
+            return self.async_create_entry(data={**self._options, CONF_THRESHOLDS: kept})
+        return self.async_show_form(
+            step_id="remove_threshold",
+            data_schema=vol.Schema(
+                {vol.Required("thresholds"): self._threshold_picker(multiple=True)}
+            ),
+        )
+
+    async def async_step_threshold(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        thresholds = self._thresholds
+        existing = next((t for t in thresholds if t["id"] == self._edit_id), None)
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input.get("notify") and not user_input.get("targets"):
+                errors["targets"] = "targets_required"
+            else:
+                item = {
+                    "message": "",
+                    **user_input,
+                    "id": existing["id"] if existing else uuid4().hex[:8],
+                    "color": list(user_input.get("color") or _default_color(user_input)),
+                }
+                if existing:
+                    thresholds = [item if t["id"] == item["id"] else t for t in thresholds]
+                else:
+                    thresholds.append(item)
+                thresholds.sort(key=lambda t: t["value"])
+                return self.async_create_entry(
+                    data={**self._options, CONF_THRESHOLDS: thresholds}
+                )
+        defaults = user_input or existing or {}
+        return self.async_show_form(
+            step_id="threshold",
+            data_schema=self._threshold_schema(defaults),
+            errors=errors,
+        )
+
+    def _threshold_picker(self, *, multiple: bool) -> selector.SelectSelector:
+        def label(t: Mapping[str, Any]) -> str:
+            sign = "≥" if t["direction"] == ABOVE else "≤"
+            return f"{t['name']} ({sign} {t['value']} cm)"
+
+        return selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[
+                    selector.SelectOptionDict(value=t["id"], label=label(t))
+                    for t in self._thresholds
+                ],
+                multiple=multiple,
+                mode=selector.SelectSelectorMode.LIST,
+            )
+        )
+
+    def _threshold_schema(self, d: Mapping[str, Any]) -> vol.Schema:
+        targets = messaging.available_targets(self.hass)
+        # Keep targets that vanished selectable so editing does not drop them silently.
+        for target in d.get("targets") or []:
+            targets.setdefault(target, target)
+
+        def suggested(key: str) -> dict[str, Any] | None:
+            value = d.get(key)
+            return None if value in (None, "") else {"suggested_value": value}
+
+        return vol.Schema(
+            {
+                vol.Required("name", default=d.get("name", vol.UNDEFINED)): (
+                    selector.TextSelector()
+                ),
+                vol.Required("value", default=d.get("value", vol.UNDEFINED)): LENGTH,
+                vol.Required("direction", default=d.get("direction", ABOVE)): _select(
+                    DIRECTIONS, "direction"
+                ),
+                vol.Required(
+                    "hysteresis", default=d.get("hysteresis", DEFAULT_HYSTERESIS)
+                ): POSITIVE_LENGTH,
+                vol.Optional("color", description=suggested("color")): (
+                    selector.ColorRGBSelector()
+                ),
+                vol.Required("notify", default=d.get("notify", False)): (
+                    selector.BooleanSelector()
+                ),
+                vol.Optional("targets", default=list(d.get("targets") or [])): (
+                    selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value=k, label=v)
+                                for k, v in targets.items()
+                            ],
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                ),
+                vol.Required("critical", default=d.get("critical", False)): (
+                    selector.BooleanSelector()
+                ),
+                vol.Optional("message", description=suggested("message")): (
+                    selector.TextSelector(selector.TextSelectorConfig(multiline=True))
+                ),
+                vol.Required(
+                    "clear_message", default=d.get("clear_message", True)
+                ): selector.BooleanSelector(),
+                vol.Required("repeat", default=d.get("repeat", 0)): _number(
+                    0, 10080, 1, "min"
+                ),
+            }
+        )
+
+
+def _default_color(data: Mapping[str, Any]) -> tuple[int, int, int]:
+    return DEFAULT_ABOVE_COLOR if data.get("direction") == ABOVE else DEFAULT_BELOW_COLOR

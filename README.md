@@ -2,8 +2,8 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.1.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte und Datenqualität.
-> Schwellenwerte mit Meldungen, Tankvolumen und die eigene Pegel-Karte folgen in den nächsten Versionen.
+> **Stand 0.2.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität sowie Schwellenwerte mit Meldungen.
+> Tankvolumen und die eigene Pegel-Karte folgen in den nächsten Versionen.
 
 ## Was du bekommst
 
@@ -16,8 +16,47 @@ Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen
 | Minimum / Maximum 24 h | Extremwerte der letzten 24 Stunden |
 | Änderung 24 h | Unterschied zu vor 24 Stunden |
 | Datenqualität | OK, veraltet, Sensor nicht verfügbar oder keine Daten |
+| Stufe | Name der schwersten aktiven Schwelle oder „Normal“, Farbe im Attribut `color` |
+| Nächste Schwelle | Schwelle, auf die sich der Pegel gerade zubewegt |
+| Zeit bis nächste Schwelle | Stunden bis dahin bei gleichbleibender Rate |
+| *Binary-Sensor je Schwelle* | an, solange die Schwelle erreicht ist |
 
-Die Messwerte werden gespeichert, damit Tendenz und 24-h-Werte einen Neustart überstehen.
+Stufe, nächste Schwelle und Zeit bis dahin gibt es nur, wenn mindestens eine Schwelle angelegt ist.
+
+Die Messwerte und der Zustand der Schwellen werden gespeichert. Tendenz und 24-h-Werte überstehen so einen Neustart, und eine Meldung kommt nach einem Neustart nicht doppelt.
+
+## Schwellenwerte und Meldungen
+
+*Level Watch → Konfigurieren → Schwellenwert hinzufügen.* Je Schwelle:
+
+| Feld | Bedeutung |
+|---|---|
+| Name, Wert | z. B. „Meldestufe 1“ bei 500 cm |
+| Erreicht, wenn der Pegel | auf oder über den Wert steigt (Hochwasser, voller Tank) oder auf oder unter den Wert fällt (Niedrigwasser, Reserve) |
+| Hysterese | so weit muss der Pegel zurückgehen, bevor die Schwelle aufgehoben wird (Vorgabe 2 cm) |
+| Farbe | Farbe der Stufe, später für die Karte |
+| Meldung senden, Melden über | Companion App, dauerhafte Meldung in Home Assistant oder jeder andere notify-Dienst (Telegram, E-Mail …) |
+| Kritisch | nur Companion App: klingelt auch im Stumm-Modus |
+| Meldungstext | leer für den Standardtext; Platzhalter `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}` |
+| Entwarnung senden | auch melden, wenn die Schwelle aufgehoben ist |
+| Wiederholen alle | Meldung wiederholen, solange die Schwelle gilt (0 = einmal) |
+
+Ausgewertet wird nur, solange die Datenqualität „OK“ ist. Ein ausgefallener Sensor löst also keine Meldung aus. Dafür kannst du eine eigene Automation auf den Datenqualitäts-Sensor bauen.
+
+Bei jedem Erreichen und Aufheben einer Schwelle feuert das Event `level_watch_threshold` mit `name`, `threshold`, `value`, `direction`, `active` und `level`. Darauf kannst du eigene Automationen aufbauen:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: level_watch_threshold
+    event_data:
+      threshold: Meldestufe 2
+      active: true
+actions:
+  - action: switch.turn_on
+    target:
+      entity_id: switch.pumpe
+```
 
 ## Datenquellen
 

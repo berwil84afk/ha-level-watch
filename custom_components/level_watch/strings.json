@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Set up Level Watch",
-        "description": "All lengths are in cm. Thresholds and notifications follow in a later version.",
+        "description": "All lengths are in cm. Thresholds and notifications are added afterwards under Configure.",
         "data": {
           "name": "Name",
           "source_entity": "Level sensor",
@@ -40,6 +40,58 @@
   "options": {
     "step": {
       "init": {
+        "title": "Level Watch settings",
+        "menu_options": {
+          "settings": "Sensor and trend settings",
+          "add_threshold": "Add threshold",
+          "edit_threshold": "Edit threshold",
+          "remove_threshold": "Remove thresholds"
+        }
+      },
+      "edit_threshold": {
+        "title": "Edit threshold",
+        "data": {
+          "threshold": "Threshold"
+        }
+      },
+      "remove_threshold": {
+        "title": "Remove thresholds",
+        "description": "Their entities are removed as well.",
+        "data": {
+          "thresholds": "Thresholds"
+        }
+      },
+      "threshold": {
+        "title": "Threshold",
+        "description": "Reached at or beyond the value; cleared once the level has moved back by the hysteresis.",
+        "data": {
+          "name": "Name",
+          "value": "Value",
+          "direction": "Reached when the level",
+          "hysteresis": "Hysteresis",
+          "color": "Color",
+          "notify": "Send notification",
+          "targets": "Notify via",
+          "critical": "Critical (Companion app)",
+          "message": "Message",
+          "clear_message": "Send all-clear",
+          "repeat": "Repeat every"
+        },
+        "data_description": {
+          "name": "E.g. Warning level 1, Reserve or Overflow.",
+          "value": "Level in cm, same reference as the level sensor.",
+          "direction": "Rising thresholds for floods and full tanks, falling ones for low water and reserves.",
+          "hysteresis": "How far the level must move back before the threshold clears. Prevents messages when it wobbles.",
+          "color": "Color of this stage in the card. Empty: orange when rising, blue when falling.",
+          "notify": "Notify when the threshold is reached.",
+          "targets": "Companion app, persistent notification in Home Assistant, Telegram, e-mail or any other notify service.",
+          "critical": "Companion app only: sounds even in silent mode (iOS critical alert, Android alarm channel).",
+          "message": "Empty for the default text. Placeholders: {name}, {threshold}, {value}, {level}, {trend}, {rate}.",
+          "clear_message": "Notify again when the threshold clears.",
+          "repeat": "Repeat the message while the threshold holds. 0 = once."
+        }
+      },
+      "settings": {
         "title": "Level Watch settings",
         "data": {
           "source_entity": "Level sensor",
@@ -86,10 +138,17 @@
     "error": {
       "height_required": "Distance measurement needs the mounting height.",
       "max_below_min": "The top reference must be above the bottom reference.",
-      "unit_unknown": "The sensor has no length unit. Choose the unit manually."
+      "unit_unknown": "The sensor has no length unit. Choose the unit manually.",
+      "targets_required": "Choose at least one target."
     }
   },
   "selector": {
+    "direction": {
+      "options": {
+        "above": "rises to or above the value",
+        "below": "falls to or below the value"
+      }
+    },
     "kind": {
       "options": {
         "water": "Water level",
@@ -131,6 +190,15 @@
       },
       "rate": {
         "name": "Rate of change"
+      },
+      "stage": {
+        "name": "Stage"
+      },
+      "next_threshold": {
+        "name": "Next threshold"
+      },
+      "time_to_next": {
+        "name": "Time to next threshold"
       },
       "min_24h": {
         "name": "Minimum 24 h"

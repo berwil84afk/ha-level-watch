@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Level Watch einrichten",
-        "description": "Alle Längen in cm. Schwellenwerte und Meldungen kommen in einer späteren Version.",
+        "description": "Alle Längen in cm. Schwellenwerte und Meldungen legst du danach unter Konfigurieren an.",
         "data": {
           "name": "Name",
           "source_entity": "Pegelsensor",
@@ -40,6 +40,58 @@
   "options": {
     "step": {
       "init": {
+        "title": "Level-Watch-Einstellungen",
+        "menu_options": {
+          "settings": "Sensor- und Tendenz-Einstellungen",
+          "add_threshold": "Schwellenwert hinzufügen",
+          "edit_threshold": "Schwellenwert bearbeiten",
+          "remove_threshold": "Schwellenwerte löschen"
+        }
+      },
+      "edit_threshold": {
+        "title": "Schwellenwert bearbeiten",
+        "data": {
+          "threshold": "Schwellenwert"
+        }
+      },
+      "remove_threshold": {
+        "title": "Schwellenwerte löschen",
+        "description": "Ihre Entitäten werden ebenfalls entfernt.",
+        "data": {
+          "thresholds": "Schwellenwerte"
+        }
+      },
+      "threshold": {
+        "title": "Schwellenwert",
+        "description": "Gilt ab dem Wert; aufgehoben, sobald der Pegel um die Hysterese zurückgegangen ist.",
+        "data": {
+          "name": "Name",
+          "value": "Wert",
+          "direction": "Erreicht, wenn der Pegel",
+          "hysteresis": "Hysterese",
+          "color": "Farbe",
+          "notify": "Meldung senden",
+          "targets": "Melden über",
+          "critical": "Kritisch (Companion App)",
+          "message": "Meldungstext",
+          "clear_message": "Entwarnung senden",
+          "repeat": "Wiederholen alle"
+        },
+        "data_description": {
+          "name": "Z. B. Meldestufe 1, Reserve oder Überlauf.",
+          "value": "Pegel in cm, gleicher Bezug wie der Pegel-Sensor.",
+          "direction": "Steigend für Hochwasser und vollen Tank, fallend für Niedrigwasser und Reserve.",
+          "hysteresis": "So weit muss der Pegel zurückgehen, bevor die Schwelle aufgehoben wird. Verhindert Meldungen, wenn er um den Wert pendelt.",
+          "color": "Farbe dieser Stufe in der Karte. Leer: orange bei steigend, blau bei fallend.",
+          "notify": "Meldung, wenn die Schwelle erreicht wird.",
+          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer notify-Dienst.",
+          "critical": "Nur Companion App: klingelt auch im Stumm-Modus (iOS kritische Mitteilung, Android Alarm-Kanal).",
+          "message": "Leer für den Standardtext. Platzhalter: {name}, {threshold}, {value}, {level}, {trend}, {rate}.",
+          "clear_message": "Auch melden, wenn die Schwelle wieder aufgehoben ist.",
+          "repeat": "Meldung wiederholen, solange die Schwelle gilt. 0 = einmal."
+        }
+      },
+      "settings": {
         "title": "Level-Watch-Einstellungen",
         "data": {
           "source_entity": "Pegelsensor",
@@ -86,10 +138,17 @@
     "error": {
       "height_required": "Für die Abstandsmessung wird die Einbauhöhe gebraucht.",
       "max_below_min": "Der obere Bezug muss über dem unteren liegen.",
-      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand."
+      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand.",
+      "targets_required": "Wähle mindestens ein Ziel."
     }
   },
   "selector": {
+    "direction": {
+      "options": {
+        "above": "auf oder über den Wert steigt",
+        "below": "auf oder unter den Wert fällt"
+      }
+    },
     "kind": {
       "options": {
         "water": "Wasserpegel",
@@ -131,6 +190,15 @@
       },
       "rate": {
         "name": "Änderungsrate"
+      },
+      "stage": {
+        "name": "Stufe"
+      },
+      "next_threshold": {
+        "name": "Nächste Schwelle"
+      },
+      "time_to_next": {
+        "name": "Zeit bis nächste Schwelle"
       },
       "min_24h": {
         "name": "Minimum 24 h"

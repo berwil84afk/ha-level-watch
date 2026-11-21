@@ -12,16 +12,19 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfLength
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfLength, UnitOfTime
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LevelWatchConfigEntry
-from .const import DOMAIN, QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_RATE, VERSION
+from .const import QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_RATE
+from .entity import LevelWatchEntity
 from .model import LevelWatchModel, Snapshot
+from .thresholds import NORMAL_COLOR
 
 PARALLEL_UPDATES = 0
+
+STAGE_NORMAL = "Normal"
 
 TREND_ICONS = {
     "rising": "mdi:trending-up",
@@ -38,14 +41,52 @@ class LevelSensorDescription(SensorEntityDescription):
     always_available: bool = False
 
 
+def _color(model: LevelWatchModel) -> str:
+    stage = model.snapshot.stage
+    return stage.hex_color if stage else NORMAL_COLOR
+
+
 def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
+    """Everything a card needs to draw the level with its thresholds."""
     snap = model.snapshot
+    s = model.settings
+    active = snap.active or {}
     return {
         "raw_level": None if snap.raw_level is None else round(snap.raw_level, 2),
-        "source_entity": model.settings.source,
-        "kind": model.settings.kind,
-        "reference_min": model.settings.ref_min,
-        "reference_max": model.settings.ref_max,
+        "source_entity": s.source,
+        "kind": s.kind,
+        "reference_min": s.ref_min,
+        "reference_max": s.ref_max,
+        "color": _color(model),
+        "stage": snap.stage.name if snap.stage else None,
+        "thresholds": [
+            {
+                "name": t.name,
+                "value": t.value,
+                "direction": t.direction,
+                "color": t.hex_color,
+                "active": bool(active.get(t.id)),
+            }
+            for t in s.thresholds
+        ],
+    }
+
+
+def _stage_attrs(model: LevelWatchModel) -> dict[str, Any]:
+    stage = model.snapshot.stage
+    return {
+        "color": _color(model),
+        "value": stage.value if stage else None,
+        "direction": stage.direction if stage else None,
+    }
+
+
+def _next_attrs(model: LevelWatchModel) -> dict[str, Any]:
+    nxt = model.snapshot.next_threshold
+    return {
+        "value": nxt.value if nxt else None,
+        "direction": nxt.direction if nxt else None,
+        "color": nxt.hex_color if nxt else None,
     }
 
 
@@ -88,6 +129,28 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
         value_fn=lambda s: s.rate,
     ),
     LevelSensorDescription(
+        key="stage",
+        translation_key="stage",
+        icon="mdi:alert-octagon-outline",
+        value_fn=lambda s: s.stage.name if s.stage else STAGE_NORMAL,
+        attrs_fn=_stage_attrs,
+    ),
+    LevelSensorDescription(
+        key="next_threshold",
+        translation_key="next_threshold",
+        icon="mdi:debug-step-over",
+        value_fn=lambda s: s.next_threshold.name if s.next_threshold else None,
+        attrs_fn=_next_attrs,
+    ),
+    LevelSensorDescription(
+        key="time_to_next",
+        translation_key="time_to_next",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        suggested_display_precision=1,
+        value_fn=lambda s: s.hours_to_next,
+    ),
+    LevelSensorDescription(
         key="min_24h",
         translation_key="min_24h",
         value_fn=lambda s: s.min_24h,
@@ -117,6 +180,8 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
     ),
 )
 
+THRESHOLD_KEYS = {"stage", "next_threshold", "time_to_next"}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -124,19 +189,21 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     model = entry.runtime_data
-    descriptions = [
-        d
-        for d in SENSORS
-        if d.key != "percent" or model.settings.ref_max is not None
-    ]
-    async_add_entities(LevelSensor(entry, model, d) for d in descriptions)
+    s = model.settings
+
+    def wanted(d: LevelSensorDescription) -> bool:
+        if d.key == "percent":
+            return s.ref_max is not None
+        if d.key in THRESHOLD_KEYS:
+            return bool(s.thresholds)
+        return True
+
+    async_add_entities(LevelSensor(entry, model, d) for d in SENSORS if wanted(d))
 
 
-class LevelSensor(SensorEntity):
+class LevelSensor(LevelWatchEntity, SensorEntity):
     """One derived value of a monitored level."""
 
-    _attr_has_entity_name = True
-    _attr_should_poll = False
     entity_description: LevelSensorDescription
 
     def __init__(
@@ -145,24 +212,8 @@ class LevelSensor(SensorEntity):
         model: LevelWatchModel,
         description: LevelSensorDescription,
     ) -> None:
+        super().__init__(entry, model, description.key)
         self.entity_description = description
-        self._model = model
-        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=entry.title,
-            manufacturer="Level Watch",
-            model="Water level" if model.settings.kind == "water" else "Tank",
-            sw_version=VERSION,
-            entry_type=DeviceEntryType.SERVICE,
-        )
-
-    async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self._model.async_add_listener(self._handle_update))
-
-    @callback
-    def _handle_update(self) -> None:
-        self.async_write_ha_state()
 
     @property
     def available(self) -> bool:
@@ -181,7 +232,7 @@ class LevelSensor(SensorEntity):
     def icon(self) -> str | None:
         if self.entity_description.key == "trend":
             return TREND_ICONS.get(self._model.snapshot.trend or "", "mdi:help")
-        return None
+        return self.entity_description.icon
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
