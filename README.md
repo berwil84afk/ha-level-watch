@@ -2,7 +2,7 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.4.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks.
+> **Stand 0.5.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks.
 
 ## Was du bekommst
 
@@ -142,12 +142,23 @@ Die Integration bringt die Karte **Level Watch** mit. Eine Ressource musst du ni
 - **Farbe:** Wasser und Akzente nehmen die Farbe der aktiven Stufe an, sonst Blau.
 - **Dazu:** Tendenzpfeil mit Rate, *Nächste Schwelle in …*, Verlauf der letzten 24 Stunden mit Schwellenlinien und ein Hinweis, wenn die Daten veraltet sind oder der Sensor fehlt.
 
+Die Karte hat vier Stile:
+
+| Stil | Inhalt |
+|---|---|
+| `forecast` (Standard) | Zonenbalken mit den Stufen und dem aktuellen Pegel, darunter Verlauf und gestrichelte Prognose bis zur nächsten Schwelle, dazu „Meldestufe 2 voraussichtlich heute 14:49“ bzw. „Reicht noch 132 Tage (bis 2. Apr.)“ |
+| `classic` | Pegellatte mit Wasserbecken oder Tankform, wie oben beschrieben |
+| `ring` | Füllstandsring mit Schwellen-Markierungen, gut für Tanks |
+| `compact` | schmale Kachel für halbe Breite: Balken, Wert, Stufe, Hinweis |
+
 ```yaml
 type: custom:level-watch-card
 entity: sensor.rhein_pegel   # oder eine andere Entität desselben Level-Watch-Geräts
+style: forecast              # forecast, classic, ring oder compact
 title: Rhein                 # optional, sonst der Gerätename
 mode: auto                   # auto, water oder tank
-history_hours: 24            # 0 blendet den Verlauf aus
+history_hours: 24            # Verlauf; 0 blendet ihn bei classic aus
+forecast_hours: 12           # wie weit die Prognose reicht
 ```
 
 ## Entwicklung
@@ -157,6 +168,6 @@ pip install -r requirements_test.txt
 pytest
 ```
 
-Die Karte siehst du ohne Home Assistant mit Testdaten: Starte `python -m http.server 8766` im Repo und öffne `http://127.0.0.1:8766/dev/preview.html`.
+Die Karte siehst du ohne Home Assistant mit Testdaten: Starte `python -m http.server 8766` im Repo und öffne `http://127.0.0.1:8766/dev/preview.html`. Mit `?style=ring` usw. siehst du nur einen Stil.
 
 Die Tests laufen auf Linux (GitHub Actions). Home Assistant selbst unterstützt Windows nicht.

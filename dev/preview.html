@@ -50,6 +50,7 @@
       trend: "rising", rate: 12.6, quality: "ok", min_24h: 470, max_24h: 548.3, change_24h: 78.3,
       next_threshold: "Meldestufe 2", hours_to_next: 4.1 }),
     lvl("sensor.oel_pegel", 64.2, { title: "Heizöl", kind: "tank", shape: "horizontal_cylinder", top: 120,
+      tank_diameter: 120, last_refill: "2026-10-03T09:12:00+00:00",
       reference_min: 5, reference_max: null, percent: 51.6, volume: 2583, capacity: 5000,
       thresholds: [{ name: "Reserve", value: 25, direction: "below", color: "#e53935", active: false }],
       color: "#26a69a", stage: null, trend: "stable", rate: -0.04, quality: "ok",
@@ -90,12 +91,23 @@
     themes: { darkMode: false },
     async callWS(msg) { return { [msg.entity_ids[0]]: history(msg.entity_ids[0]) }; },
   };
+  // ?style=forecast|classic|ring|compact; without it every style is shown.
+  const only = new URLSearchParams(location.search).get("style");
   const grid = document.getElementById("grid");
-  for (const id of Object.keys(states)) {
-    const card = document.createElement("level-watch-card");
-    card.setConfig({ entity: id, title: states[id].attributes.title });
-    card.hass = hass;
-    grid.appendChild(card);
+  for (const style of only ? [only] : ["forecast", "classic", "ring", "compact"]) {
+    const h = document.createElement("h3");
+    h.textContent = style;
+    h.style.gridColumn = "1 / -1";
+    h.style.margin = "8px 0 0";
+    h.style.color = "var(--secondary-text-color)";
+    grid.appendChild(h);
+    for (const id of Object.keys(states)) {
+      const card = document.createElement("level-watch-card");
+      card.setConfig({ entity: id, title: states[id].attributes.title, style });
+      card.hass = hass;
+      if (style === "compact") card.style.maxWidth = "220px";
+      grid.appendChild(card);
+    }
   }
 </script>
 </body>

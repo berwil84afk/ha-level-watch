@@ -4,7 +4,8 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.4.0";
+const CARD_VERSION = "0.5.0";
+const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
 const TEXT = {
@@ -18,6 +19,10 @@ const TEXT = {
     day: "Tag", days: "Tage", h: "h", min_u: "min", history: "Verlauf",
     entity: "Entität", title: "Titel", mode: "Darstellung", history_hours: "Verlauf (Stunden, 0 = aus)",
     mode_auto: "Automatisch", mode_water: "Wasserpegel", mode_tank: "Tank",
+    style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
+    style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
+    now: "jetzt", expected: "voraussichtlich", today: "heute", tomorrow: "morgen",
+    until: "bis", refilled: "Getankt", in_short: "in",
   },
   en: {
     rising: "rising", falling: "falling", stable: "stable", unknown: "trend pending",
@@ -29,6 +34,10 @@ const TEXT = {
     day: "day", days: "days", h: "h", min_u: "min", history: "History",
     entity: "Entity", title: "Title", mode: "Display", history_hours: "History (hours, 0 = off)",
     mode_auto: "Automatic", mode_water: "Water level", mode_tank: "Tank",
+    style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
+    style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
+    now: "now", expected: "expected", today: "today", tomorrow: "tomorrow",
+    until: "until", refilled: "Refilled", in_short: "in",
   },
 };
 
@@ -87,10 +96,15 @@ class LevelWatchCard extends HTMLElement {
         { name: "entity", required: true, selector: { entity: { filter: { integration: "level_watch" } } } },
         { name: "title", selector: { text: {} } },
         {
+          name: "style",
+          selector: { select: { mode: "dropdown", options: STYLES.map((v) => ({ value: v, label: t[`style_${v}`] })) } },
+        },
+        {
           name: "mode",
           selector: { select: { mode: "dropdown", options: ["auto", "water", "tank"].map((v) => ({ value: v, label: t[`mode_${v}`] })) } },
         },
         { name: "history_hours", selector: { number: { min: 0, max: 168, mode: "box" } } },
+        { name: "forecast_hours", selector: { number: { min: 1, max: 168, mode: "box" } } },
       ],
       computeLabel: (schema) => t[schema.name] || schema.name,
     };
@@ -98,7 +112,8 @@ class LevelWatchCard extends HTMLElement {
 
   setConfig(config) {
     if (!config || !config.entity) throw new Error("entity is required");
-    this._config = { mode: "auto", history_hours: 24, ...config };
+    this._config = { style: "forecast", mode: "auto", history_hours: 24, forecast_hours: 12, ...config };
+    if (!STYLES.includes(this._config.style)) this._config.style = "forecast";
     this._renderKey = "";
     this._history = null;
     this._historyFetched = 0;
@@ -111,10 +126,14 @@ class LevelWatchCard extends HTMLElement {
   }
 
   getCardSize() {
-    return this._config?.history_hours ? 5 : 4;
+    return this.getGridOptions().rows;
   }
 
   getGridOptions() {
+    const style = this._config?.style || "forecast";
+    if (style === "compact") return { columns: 6, rows: 2, min_columns: 3, min_rows: 2 };
+    if (style === "ring") return { columns: 12, rows: 3, min_columns: 6, min_rows: 3 };
+    if (style === "forecast") return { columns: 12, rows: 5, min_columns: 6, min_rows: 4 };
     return { columns: 12, rows: this._config?.history_hours ? 5 : 4, min_columns: 6, min_rows: 3 };
   }
 
@@ -182,30 +201,313 @@ class LevelWatchCard extends HTMLElement {
     const quality = a.quality || (hasLevel ? "ok" : "no_data");
     const qualityNote = quality === "ok" ? "" : `<div class="quality">${esc(t[quality] || quality)}</div>`;
 
-    const visual = mode === "tank" ? this._tankSvg(a, level, color) : this._waterSvg(a, level, color);
-    const stats = mode === "tank"
-      ? this._tankStats(a, level, hasLevel, fmt, t)
-      : this._waterStats(a, level, hasLevel, fmt, t);
-    const spark = this._sparkline(a, color);
-
+    const c = { a, level, hasLevel, mode, color, title, fmt, t, quality, qualityNote,
+      dim: quality === "ok" ? "" : "dim" };
+    const style = this._config.style;
+    const content = style === "classic" ? this._classic(c)
+      : style === "ring" ? this._ring(c)
+        : style === "compact" ? this._compact(c)
+          : this._forecast(c);
     this.shadowRoot.innerHTML = `${STYLE}
-      <ha-card style="--lw-color:${esc(color)}">
-        <div class="head">
-          <div class="title">${esc(title)}</div>
-          ${this._stageChip(a, t)}
-        </div>
-        <div class="body ${quality === "ok" ? "" : "dim"}">
-          <div class="visual">${visual}</div>
-          <div class="stats">${stats}</div>
-        </div>
-        ${qualityNote}
-        ${spark}
-      </ha-card>`;
+      <ha-card class="${style}" style="--lw-color:${esc(color)}">${content}</ha-card>`;
     this.shadowRoot.querySelector("ha-card").addEventListener("click", () => {
       const ev = new Event("hass-more-info", { bubbles: true, composed: true });
       ev.detail = { entityId };
       this.dispatchEvent(ev);
     });
+  }
+
+  _head(c) {
+    return `<div class="head"><div class="title">${esc(c.title)}</div>${this._stageChip(c.a, c.t)}</div>`;
+  }
+
+  // -- style: classic -----------------------------------------------------------
+
+  _classic(c) {
+    const { a, level, hasLevel, mode, color, fmt, t } = c;
+    const visual = mode === "tank" ? this._tankSvg(a, level, color) : this._waterSvg(a, level, color);
+    const stats = mode === "tank"
+      ? this._tankStats(a, level, hasLevel, fmt, t)
+      : this._waterStats(a, level, hasLevel, fmt, t);
+    return `${this._head(c)}
+      <div class="body ${c.dim}">
+        <div class="visual">${visual}</div>
+        <div class="stats">${stats}</div>
+      </div>
+      ${c.qualityNote}
+      ${this._sparkline(a, color)}`;
+  }
+
+  // -- style: forecast (zone bar + history with projection) ---------------------
+
+  _range(c) {
+    const { a, level, mode } = c;
+    if (mode === "tank") {
+      const top = Number.isFinite(a.top) && a.top > 0 ? a.top
+        : Math.max(level || 0, ...(a.thresholds || []).map((x) => x.value), 1) * 1.1;
+      return [Math.min(0, a.reference_min ?? 0), top];
+    }
+    if (Number.isFinite(a.reference_min) && Number.isFinite(a.reference_max)) {
+      // Fixed references give clean ends; widen only if a value lies outside.
+      const values = [level, ...(a.thresholds || []).map((x) => x.value)].filter(Number.isFinite);
+      return [Math.min(a.reference_min, ...values), Math.max(a.reference_max, ...values)];
+    }
+    return this._waterRange(a, level);
+  }
+
+  _bigValue(c) {
+    const { a, level, hasLevel, mode, fmt } = c;
+    if (mode === "tank" && Number.isFinite(a.percent)) return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
+    return hasLevel ? `${fmt(level)}<span class="unit">cm</span>` : "–";
+  }
+
+  _forecast(c) {
+    const { a, mode, fmt, t } = c;
+    const rows = [];
+    const next = a.next_threshold && Number.isFinite(a.hours_to_next)
+      ? (a.thresholds || []).find((x) => x.name === a.next_threshold) : null;
+    if (next) {
+      rows.push(`<div class="line"><span class="dot" style="background:${esc(next.color)}"></span>${esc(next.name)} ${t.expected} <b>${esc(this._when(a.hours_to_next, t))}</b></div>`);
+    }
+    if (mode === "tank") {
+      if (Number.isFinite(a.days_left)) {
+        rows.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b> <span class="small">(${t.until} ${esc(this._date(a.days_left * 24))})</span></div>`);
+      }
+      const parts = [];
+      if (Number.isFinite(a.volume)) parts.push(`${fmt(a.volume, 0)} L${Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : ""}`);
+      if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} L ${t.per_day}`);
+      if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt)}`);
+      if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))}</div>`);
+    } else {
+      const parts = [
+        Number.isFinite(a.min_24h) ? `${t.min} ${fmt(a.min_24h)}` : "",
+        Number.isFinite(a.max_24h) ? `${t.max} ${fmt(a.max_24h)}` : "",
+        Number.isFinite(a.change_24h) ? `${t.change} ${a.change_24h > 0 ? "+" : ""}${fmt(a.change_24h)}` : "",
+      ].filter(Boolean);
+      if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))} cm</div>`);
+    }
+    return `${this._head(c)}
+      <div class="fc ${c.dim}">
+        <div class="valrow"><div class="big">${this._bigValue(c)}</div>${this._trendLine(a, fmt, t)}</div>
+        ${this._zoneBar(c)}
+        ${this._forecastChart(c)}
+        ${rows.join("")}
+      </div>
+      ${c.qualityNote}`;
+  }
+
+  _zoneBar(c) {
+    const { a, level, hasLevel, fmt } = c;
+    const ths = a.thresholds || [];
+    const [lo, hi] = this._range(c);
+    const w = 300;
+    const x = (v) => Math.max(0, Math.min(w, ((v - lo) / (hi - lo)) * w));
+    const bounds = [lo, ...ths.map((th) => th.value).filter((v) => v > lo && v < hi), hi]
+      .sort((p, q) => p - q);
+    const current = hasLevel ? stageColorAt(ths, level, NORMAL_ZONE) : null;
+    let rects = "";
+    for (let i = 0; i < bounds.length - 1; i += 1) {
+      const mid = (bounds[i] + bounds[i + 1]) / 2;
+      const col = stageColorAt(ths, mid, NORMAL_ZONE);
+      const here = hasLevel && level >= bounds[i] && level <= bounds[i + 1];
+      rects += `<rect x="${x(bounds[i])}" y="14" width="${Math.max(0, x(bounds[i + 1]) - x(bounds[i]))}" height="12" fill="${esc(col)}" opacity="${here || col === current && here ? 1 : 0.4}"/>`;
+    }
+    let marker = "";
+    if (hasLevel) {
+      const lx = x(level);
+      marker = `<line x1="${lx}" x2="${lx}" y1="9" y2="31" class="mark"/><polygon points="${lx - 5},3 ${lx + 5},3 ${lx},9" class="markfill"/>`;
+      if (Number.isFinite(a.rate) && (a.trend === "rising" || a.trend === "falling")) {
+        const fh = Number(this._config.forecast_hours) || 12;
+        const target = level + a.rate * Math.min(fh, Number.isFinite(a.hours_to_next) ? a.hours_to_next : fh);
+        const tx = x(target);
+        if (Math.abs(tx - lx) > 4) {
+          marker += `<line x1="${lx}" x2="${tx}" y1="20" y2="20" class="proj"/>`
+            + `<circle cx="${tx}" cy="20" r="3" class="projdot"/>`;
+        }
+      }
+    }
+    let labels = "";
+    let lastX = -100;
+    for (const v of bounds) {
+      const lx = x(v);
+      if (lx - lastX < 30 && v !== hi) continue;
+      if (v === hi && lx - lastX < 30) continue;
+      const anchor = lx < 10 ? "start" : lx > w - 10 ? "end" : "middle";
+      labels += `<text x="${lx}" y="44" text-anchor="${anchor}" class="zl">${esc(fmt(v, 0))}</text>`;
+      lastX = lx;
+    }
+    return `<svg class="zones" viewBox="0 0 ${w} 48" aria-hidden="true">
+      <defs><clipPath id="lwZones"><rect x="0" y="14" width="${w}" height="12" rx="6"/></clipPath></defs>
+      <g clip-path="url(#lwZones)">${rects}</g>${marker}${labels}</svg>`;
+  }
+
+  _forecastChart(c) {
+    const { a, level, hasLevel, color, t } = c;
+    const hist = Number(this._config.history_hours) || 0;
+    const fh = Number(this._config.forecast_hours) || 12;
+    const pts = this._history || [];
+    const now = Date.now();
+    const t0 = now - (hist || 6) * 3600e3;
+    const t1 = now + fh * 3600e3;
+    let proj = null;
+    if (hasLevel && Number.isFinite(a.rate) && (a.trend === "rising" || a.trend === "falling")) {
+      const reach = Number.isFinite(a.hours_to_next) && a.hours_to_next <= fh;
+      const h = reach ? a.hours_to_next : fh;
+      proj = { h, v: level + a.rate * h, reach };
+    }
+    const values = pts.map((p) => p.v);
+    if (hasLevel) values.push(level);
+    if (proj) values.push(proj.v);
+    if (!values.length) return "";
+    let lo = Math.min(...values);
+    let hi = Math.max(...values);
+    if (hi - lo < 10) { const m = (hi + lo) / 2; lo = m - 5; hi = m + 5; }
+    const span = hi - lo;
+    const ths = a.thresholds || [];
+    const next = ths.find((th) => th.name === a.next_threshold);
+    for (const th of ths) {
+      if (th === next || (th.value >= lo - span * 0.5 && th.value <= hi + span * 0.5)) {
+        lo = Math.min(lo, th.value);
+        hi = Math.max(hi, th.value);
+      }
+    }
+    lo -= (hi - lo) * 0.08;
+    hi += (hi - lo) * 0.08;
+    const w = 300;
+    const h = 110;
+    const x = (ms) => ((ms - t0) / (t1 - t0)) * w;
+    const y = (v) => h - 14 - ((v - lo) / (hi - lo)) * (h - 22);
+    const nx = x(now);
+    let d = "";
+    pts.filter((p) => p.t >= t0).forEach((p, i) => {
+      d += i ? ` H${x(p.t).toFixed(1)} V${y(p.v).toFixed(1)}` : `M${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`;
+    });
+    if (hasLevel) d += d ? ` H${nx.toFixed(1)} V${y(level).toFixed(1)}` : `M${nx.toFixed(1)} ${y(level).toFixed(1)}`;
+    const area = d ? `${d} V${h - 14} H${x(Math.max(t0, pts[0]?.t ?? now)).toFixed(1)} Z` : "";
+    const lines = ths.filter((th) => th.value >= lo && th.value <= hi).map((th) => {
+      const ty = y(th.value);
+      return `<line x1="0" x2="${w}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
+        + `<text x="3" y="${ty - 3}" class="zl" fill="${esc(th.color)}">${esc(th.name)}</text>`;
+    }).join("");
+    let projSvg = "";
+    if (proj) {
+      const px = x(now + proj.h * 3600e3);
+      const py = y(proj.v);
+      projSvg = `<line x1="${nx}" y1="${y(level)}" x2="${px}" y2="${py}" stroke="${esc(color)}" class="projline"/>`;
+      if (proj.reach && next) {
+        projSvg += `<circle cx="${px}" cy="${py}" r="4" fill="var(--card-background-color, #fff)" stroke="${esc(next.color)}" stroke-width="2"/>`;
+      }
+    }
+    return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+      ${area ? `<path d="${area}" fill="${esc(color)}" opacity="0.12"/>` : ""}
+      ${lines}
+      <line x1="${nx}" x2="${nx}" y1="4" y2="${h - 14}" class="nowline"/>
+      ${d ? `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="2" vector-effect="non-scaling-stroke"/>` : ""}
+      ${projSvg}
+      ${hasLevel ? `<circle cx="${nx}" cy="${y(level)}" r="3.5" fill="${esc(color)}"/>` : ""}
+      <text x="0" y="${h - 2}" class="zl">−${hist || 6} h</text>
+      <text x="${nx}" y="${h - 2}" class="zl" text-anchor="middle">${esc(t.now)}</text>
+      <text x="${w}" y="${h - 2}" class="zl" text-anchor="end">+${fh} h</text>
+    </svg>`;
+  }
+
+  _when(hours, t) {
+    if (hours < 1) return `${t.in_short} ${Math.max(1, Math.round(hours * 60))} ${t.min_u}`;
+    const at = new Date(Date.now() + hours * 3600e3);
+    const loc = this._hass.locale?.language || "en";
+    const time = at.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+    const today = new Date();
+    const days = Math.round((new Date(at.toDateString()) - new Date(today.toDateString())) / 86400e3);
+    if (days === 0) return `${t.today} ${time}`;
+    if (days === 1) return `${t.tomorrow} ${time}`;
+    return `${at.toLocaleDateString(loc, { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+  }
+
+  _date(hours) {
+    const at = new Date(Date.now() + hours * 3600e3);
+    return at.toLocaleDateString(this._hass.locale?.language || "en", { day: "numeric", month: "short", year: hours > 24 * 300 ? "numeric" : undefined });
+  }
+
+  // -- style: ring ----------------------------------------------------------------
+
+  _fraction(c, v) {
+    const { a, mode } = c;
+    if (mode === "tank" && a.shape === "horizontal_cylinder" && Number.isFinite(a.tank_diameter)) {
+      const vol = (h) => segmentArea(a.tank_diameter, h);
+      const bottom = vol(a.reference_min ?? 0);
+      const full = vol(a.top) - bottom;
+      return full > 0 ? clamp01((vol(v) - bottom) / full) : 0;
+    }
+    const [lo, hi] = mode === "tank"
+      ? [a.reference_min ?? 0, this._range(c)[1]]
+      : [a.reference_min ?? this._range(c)[0], a.reference_max ?? this._range(c)[1]];
+    return clamp01((v - lo) / (hi - lo));
+  }
+
+  _ring(c) {
+    const { a, level, hasLevel, mode, color, fmt, t } = c;
+    const frac = mode === "tank" && Number.isFinite(a.percent) ? a.percent / 100
+      : hasLevel ? this._fraction(c, level) : 0;
+    const r = 48;
+    const len = 2 * Math.PI * r;
+    const ticks = (a.thresholds || []).map((th) => {
+      const ang = this._fraction(c, th.value) * 360;
+      return `<line x1="60" y1="4" x2="60" y2="20" stroke="${esc(th.color)}" stroke-width="2.5" transform="rotate(${ang} 60 60)"/>`;
+    }).join("");
+    const center = mode === "tank" && Number.isFinite(a.percent)
+      ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, 0)}` : "–");
+    const sub = mode === "tank" && Number.isFinite(a.volume) ? `${fmt(a.volume, 0)} L` : (hasLevel ? "cm" : "");
+    const lines = [this._trendLine(a, fmt, t)];
+    if (Number.isFinite(a.days_left)) lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
+    if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} L ${t.per_day}</div>`);
+    if (Number.isFinite(a.hours_to_full)) lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt))}</b></div>`);
+    lines.push(this._nextLine(a, t, fmt));
+    if (a.last_refill) {
+      lines.push(`<div class="small">${t.refilled} ${esc(new Date(a.last_refill).toLocaleDateString(this._hass.locale?.language || "en", { day: "numeric", month: "short" }))}</div>`);
+    }
+    return `${this._head(c)}
+      <div class="body ${c.dim}">
+        <svg class="ringsvg" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="${r}" class="ringbg"/>
+          ${frac > 0.005 ? `<circle cx="60" cy="60" r="${r}" fill="none" stroke="${esc(color)}" stroke-width="12" stroke-linecap="round"
+            stroke-dasharray="${(len * frac).toFixed(1)} ${len.toFixed(1)}" transform="rotate(-90 60 60)"/>` : ""}
+          ${ticks}
+          <text x="60" y="62" text-anchor="middle" class="ringval">${esc(center)}</text>
+          <text x="60" y="80" text-anchor="middle" class="zl">${esc(sub)}</text>
+        </svg>
+        <div class="stats">${lines.join("")}</div>
+      </div>
+      ${c.qualityNote}`;
+  }
+
+  // -- style: compact ---------------------------------------------------------------
+
+  _compact(c) {
+    const { a, level, hasLevel, mode, color, fmt, t } = c;
+    const frac = mode === "tank" && Number.isFinite(a.percent) ? a.percent / 100
+      : hasLevel ? this._fraction(c, level) : 0;
+    const stage = a.stage
+      ? `<div class="cstage" style="color:${esc(a.color)}">${esc(a.stage)}</div>`
+      : `<div class="cstage">${esc(t.normal)}</div>`;
+    let hint = "";
+    if (a.next_threshold && Number.isFinite(a.hours_to_next)) {
+      hint = `${a.next_threshold} ${t.in_short} ${this._duration(a.hours_to_next, t, fmt)}`;
+    } else if (Number.isFinite(a.days_left)) {
+      hint = this._duration(a.days_left * 24, t, fmt);
+    } else if (Number.isFinite(a.hours_to_full)) {
+      hint = `${t.full_in} ${this._duration(a.hours_to_full, t, fmt)}`;
+    }
+    const icon = TREND_ICON[a.trend]
+      ? `<svg class="ticon ${a.trend}" viewBox="0 0 24 24"><path d="${TREND_ICON[a.trend]}"/></svg>` : "";
+    return `<div class="cbox ${c.dim}">
+        <div class="cbar"><div style="height:${(frac * 100).toFixed(1)}%;background:${esc(color)}"></div></div>
+        <div class="cinfo">
+          <div class="ctitle">${esc(c.title)}</div>
+          <div class="cval">${this._bigValue(c)}</div>
+          ${stage}
+          ${hint || icon ? `<div class="chint">${icon}<span>${esc(hint)}</span></div>` : ""}
+        </div>
+      </div>`;
   }
 
   _stageChip(a, t) {
@@ -437,6 +739,28 @@ class LevelWatchCard extends HTMLElement {
   }
 }
 
+const NORMAL_ZONE = "#26a69a";
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+}
+
+/** Filled cross-section of a horizontal cylinder of diameter d up to height h. */
+function segmentArea(d, h) {
+  const r = d / 2;
+  const hh = Math.max(0, Math.min(d, h));
+  return r * r * Math.acos((r - hh) / r) - (r - hh) * Math.sqrt(Math.max(0, 2 * r * hh - hh * hh));
+}
+
+/** Color of the stage that would be active at value v (hysteresis ignored). */
+function stageColorAt(ths, v, normal) {
+  const above = ths.filter((x) => x.direction === "above" && v >= x.value);
+  if (above.length) return above.reduce((m, x) => (x.value > m.value ? x : m)).color;
+  const below = ths.filter((x) => x.direction === "below" && v <= x.value);
+  if (below.length) return below.reduce((m, x) => (x.value < m.value ? x : m)).color;
+  return normal;
+}
+
 function niceStep(raw) {
   const pow = 10 ** Math.floor(Math.log10(Math.max(raw, 1e-6)));
   const n = raw / pow;
@@ -504,6 +828,33 @@ const STYLE = `<style>
   .wave.b { animation: lw-drift 9s linear infinite reverse; }
   @keyframes lw-drift { from { transform: translateX(0); } to { transform: translateX(40px); } }
   @media (prefers-reduced-motion: reduce) { .wave.a, .wave.b { animation: none; } }
+  .fc { display: flex; flex-direction: column; gap: 6px; }
+  .fc.dim, .cbox.dim { opacity: 0.55; filter: grayscale(0.6); }
+  .valrow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .zones { width: 100%; height: auto; display: block; overflow: visible; }
+  .zl { font-size: 9px; fill: var(--secondary-text-color); }
+  .mark { stroke: var(--primary-text-color); stroke-width: 2; }
+  .markfill { fill: var(--primary-text-color); }
+  .proj { stroke: var(--primary-text-color); stroke-width: 1.5; stroke-dasharray: 3 2; }
+  .projdot { fill: var(--card-background-color, #fff); stroke: var(--primary-text-color); stroke-width: 1.5; }
+  .chart { width: 100%; height: 120px; display: block; }
+  .projline { stroke-width: 2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+  .nowline { stroke: var(--divider-color, #ccc); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .ringsvg { flex: 0 0 120px; width: 120px; height: 120px; }
+  .ringbg { fill: none; stroke: var(--divider-color, #e0e0e0); stroke-width: 12; }
+  .ringval { font-size: 22px; font-weight: 500; fill: var(--primary-text-color); }
+  ha-card.compact { padding: 12px; }
+  .cbox { display: flex; gap: 12px; height: 100%; align-items: stretch; }
+  .cbar { width: 10px; border-radius: 5px; background: var(--divider-color, #e0e0e0); position: relative;
+    overflow: hidden; flex: none; }
+  .cbar div { position: absolute; left: 0; right: 0; bottom: 0; transition: height 0.8s ease; }
+  .cinfo { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .ctitle { font-size: 0.9em; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .cval { font-size: 1.7em; font-weight: 500; line-height: 1.1; color: var(--primary-text-color); }
+  .cstage { font-size: 0.85em; color: var(--secondary-text-color); }
+  .chint { display: flex; align-items: center; gap: 4px; font-size: 0.85em; color: var(--secondary-text-color); }
+  .chint .ticon { width: 16px; height: 16px; }
   .spark { width: 100%; height: 56px; display: block; }
   .spark.empty { height: 56px; }
 </style>`;

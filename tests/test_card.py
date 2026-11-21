@@ -43,5 +43,7 @@ async def test_level_attributes_for_card(hass: HomeAssistant, source) -> None:
     assert attrs["stage"] is None
     assert attrs["color"] == "#26a69a"
     assert 80 < attrs["percent"] < 81  # 3/4 of the height is about 80 % by volume
+    assert attrs["tank_diameter"] == 400
+    assert attrs["last_refill"] is None
     for key in ("trend", "rate", "consumption", "days_left", "hours_to_next"):
         assert key in attrs
