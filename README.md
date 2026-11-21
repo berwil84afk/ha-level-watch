@@ -1,3 +1,5 @@
+<img src="custom_components/level_watch/brand/icon.png" alt="" width="96" align="right">
+
 # Level Watch für Home Assistant
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
