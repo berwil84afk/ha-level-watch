@@ -4,14 +4,14 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.1";
+const CARD_VERSION = "0.7.2";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
 const TEXT = {
   de: {
     rising: "steigend", falling: "fallend", stable: "stabil", unknown: "Tendenz offen",
-    normal: "Normal", next: "Nächste Schwelle", in: "in", reached: "erreicht",
+    normal: "Normal", next: "Nächste Schwelle", in: "in", reached: "erreicht", level_now: "Pegel",
     left: "Reicht noch", per_day: "pro Tag", full_in: "Voll in", of: "von",
     min: "Min", max: "Max", change: "24 h", stale: "Daten veraltet",
     unavailable: "Sensor nicht verfügbar", no_data: "Noch keine Daten",
@@ -37,7 +37,7 @@ const TEXT = {
   },
   en: {
     rising: "rising", falling: "falling", stable: "stable", unknown: "trend pending",
-    normal: "Normal", next: "Next threshold", in: "in", reached: "reached",
+    normal: "Normal", next: "Next threshold", in: "in", reached: "reached", level_now: "Level",
     left: "Lasts", per_day: "per day", full_in: "Full in", of: "of",
     min: "Min", max: "Max", change: "24 h", stale: "Data stale",
     unavailable: "Sensor unavailable", no_data: "No data yet",
@@ -644,8 +644,9 @@ class LevelWatchCard extends HTMLElement {
     const area = d ? `${d} V${h - 14} H${x(Math.max(t0, pts[0]?.t ?? now)).toFixed(1)} Z` : "";
     const lines = ths.filter((th) => th.value >= lo && th.value <= hi).map((th) => {
       const ty = y(th.value);
-      return `<line x1="0" x2="${w}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
-        + `<text x="3" y="${ty - 3}" class="zl" fill="${esc(th.color)}">${esc(th.name)}</text>`;
+      return hoverLine(this._thrTip(th, a), 0, ty, w, ty,
+        `<line x1="0" x2="${w}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
+        + `<text x="3" y="${ty - 3}" class="zl" fill="${esc(th.color)}">${esc(th.name)}</text>`);
     }).join("");
     let projSvg = "";
     if (proj) {
@@ -710,7 +711,9 @@ class LevelWatchCard extends HTMLElement {
     const len = 2 * Math.PI * r;
     const ticks = (a.thresholds || []).map((th) => {
       const ang = this._fraction(c, th.value) * 360;
-      return `<line x1="60" y1="4" x2="60" y2="20" stroke="${esc(th.color)}" stroke-width="2.5" transform="rotate(${ang} 60 60)"/>`;
+      return `<g class="hov" transform="rotate(${ang} 60 60)"><title>${esc(this._thrTip(th, a))}</title>`
+        + `<line x1="60" y1="0" x2="60" y2="24" class="hit"/>`
+        + `<line x1="60" y1="4" x2="60" y2="20" stroke="${esc(th.color)}" stroke-width="2.5"/></g>`;
     }).join("");
     const center = mode === "tank" && Number.isFinite(a.percent)
       ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, 0)}` : "–");
@@ -766,6 +769,21 @@ class LevelWatchCard extends HTMLElement {
           ${hint || icon ? `<div class="chint">${icon}<span>${esc(hint)}</span></div>` : ""}
         </div>
       </div>`;
+  }
+
+  /** Tooltip text of a threshold line, e.g. "Meldestufe 2 · ≥ 350 cm (erreicht)". */
+  _thrTip(th, a) {
+    const t = TEXT[lang(this._hass)];
+    const fmt = new Intl.NumberFormat(this._hass?.locale?.language || "en", { maximumFractionDigits: 1 });
+    const sign = th.direction === "below" ? "≤" : "≥";
+    return `${th.name} · ${sign} ${fmt.format(th.value)} ${unitOf(a)}${th.active ? ` (${t.reached})` : ""}`;
+  }
+
+  _levelTip(a, level) {
+    const t = TEXT[lang(this._hass)];
+    if (!Number.isFinite(level)) return t.level_now;
+    const fmt = new Intl.NumberFormat(this._hass?.locale?.language || "en", { maximumFractionDigits: 1 });
+    return `${t.level_now} ${fmt.format(level)} ${unitOf(a)}`;
   }
 
   _stageChip(a, t) {
@@ -885,8 +903,9 @@ class LevelWatchCard extends HTMLElement {
     const lines = (a.thresholds || []).map((th) => {
       const ty = y(th.value);
       if (ty < top - 1 || ty > bottom + 1) return "";
-      return `<line x1="8" x2="152" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
-        + `<polygon points="152,${ty} 158,${ty - 4} 158,${ty + 4}" fill="${esc(th.color)}"/>`;
+      return hoverLine(this._thrTip(th, a), 8, ty, 158, ty,
+        `<line x1="8" x2="152" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
+        + `<polygon points="152,${ty} 158,${ty - 4} 158,${ty + 4}" fill="${esc(th.color)}"/>`);
     }).join("");
     return `
       <svg viewBox="0 0 160 220" class="gauge" aria-hidden="true">
@@ -904,7 +923,7 @@ class LevelWatchCard extends HTMLElement {
         <rect x="6" y="${top}" width="26" height="${bottom - top}" rx="2" class="staff"/>
         ${ticks}
         ${lines}
-        <line x1="4" x2="152" y1="${ly}" y2="${ly}" class="surface"/>
+        ${hoverLine(this._levelTip(a, level), 4, ly, 152, ly, `<line x1="4" x2="152" y1="${ly}" y2="${ly}" class="surface"/>`)}
       </svg>`;
   }
 
@@ -930,7 +949,8 @@ class LevelWatchCard extends HTMLElement {
     const ly = Number.isFinite(level) ? y(level) : box.y + box.h;
     const lines = (a.thresholds || []).map((th) => {
       const ty = y(th.value);
-      return `<line x1="${box.x - 2}" x2="${box.x + box.w + 8}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`;
+      return hoverLine(this._thrTip(th, a), box.x - 2, ty, box.x + box.w + 8, ty,
+        `<line x1="${box.x - 2}" x2="${box.x + box.w + 8}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`);
     }).join("");
     // Scale beside the tank, in the unit of the level (cm or %).
     const step = niceStep(topH / 5);
@@ -998,7 +1018,8 @@ class LevelWatchCard extends HTMLElement {
     d += ` H${w}`;
     const area = `${d} V${h} H0 Z`;
     const lines = (a.thresholds || []).filter((th) => th.value >= lo && th.value <= hi)
-      .map((th) => `<line x1="0" x2="${w}" y1="${y(th.value)}" y2="${y(th.value)}" stroke="${esc(th.color)}" class="thr"/>`)
+      .map((th) => hoverLine(this._thrTip(th, a), 0, y(th.value), w, y(th.value),
+        `<line x1="0" x2="${w}" y1="${y(th.value)}" y2="${y(th.value)}" stroke="${esc(th.color)}" class="thr"/>`))
       .join("");
     return `
       <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
@@ -1083,6 +1104,12 @@ const EDITOR_STYLE = `<style>
     .details { padding-left: 4px; }
   }
 </style>`;
+
+/** A line with a tooltip and a wider invisible strip that is easy to hover. */
+function hoverLine(tip, x1, y1, x2, y2, visible) {
+  return `<g class="hov"><title>${esc(tip)}</title>`
+    + `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="hit"/>${visible}</g>`;
+}
 
 function unitOf(a) {
   return (a && a.unit) || "cm";
@@ -1191,6 +1218,9 @@ const STYLE = `<style>
   .zl { font-size: 9px; fill: var(--secondary-text-color); }
   .zoneoff { opacity: 0.85; }
   .zone { cursor: help; }
+  .hov { cursor: help; }
+  .hov .hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; vector-effect: non-scaling-stroke; }
+  .hov:hover .thr { opacity: 1; stroke-width: 2.5; }
   .zone .zfill { transition: opacity .15s, filter .15s; }
   .zone:hover .zfill { opacity: 1; filter: brightness(1.15); }
   .mark { stroke: var(--primary-text-color); stroke-width: 2; }
