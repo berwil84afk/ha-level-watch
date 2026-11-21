@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.5";
+const CARD_VERSION = "0.7.6";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -16,7 +16,7 @@ const TEXT = {
     min: "Min", max: "Max", change: "24 h", stale: "Daten veraltet",
     unavailable: "Sensor nicht verfügbar", no_data: "Noch keine Daten",
     not_found: "Entität nicht gefunden", not_level_watch: "Keine Level-Watch-Entität",
-    day: "Tag", days: "Tage", h: "h", min_u: "min", history: "Verlauf",
+    day: "Tag", days: "Tage", days_in: "Tagen", h: "h", min_u: "min", history: "Verlauf",
     entity: "Entität", title: "Titel", mode: "Darstellung", history_hours: "Verlauf (Stunden)", show_history: "Verlauf anzeigen",
     mode_auto: "Automatisch", mode_water: "Wasserpegel", mode_tank: "Tank",
     style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
@@ -42,7 +42,7 @@ const TEXT = {
     min: "Min", max: "Max", change: "24 h", stale: "Data stale",
     unavailable: "Sensor unavailable", no_data: "No data yet",
     not_found: "Entity not found", not_level_watch: "Not a Level Watch entity",
-    day: "day", days: "days", h: "h", min_u: "min", history: "History",
+    day: "day", days: "days", days_in: "days", h: "h", min_u: "min", history: "History",
     entity: "Entity", title: "Title", mode: "Display", history_hours: "History (hours)", show_history: "Show history",
     mode_auto: "Automatic", mode_water: "Water level", mode_tank: "Tank",
     style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
@@ -529,7 +529,7 @@ class LevelWatchCard extends HTMLElement {
       const parts = [];
       if (Number.isFinite(a.volume)) parts.push(`${fmt(a.volume, 0)} L${Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : ""}`);
       if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}`);
-      if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt)}`);
+      if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`);
       if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))}</div>`);
     } else {
       const parts = [
@@ -726,7 +726,7 @@ class LevelWatchCard extends HTMLElement {
     const lines = [this._trendLine(a, fmt, t)];
     if (Number.isFinite(a.days_left)) lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
     if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
-    if (Number.isFinite(a.hours_to_full)) lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt))}</b></div>`);
+    if (Number.isFinite(a.hours_to_full)) lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt, true))}</b></div>`);
     lines.push(this._nextLine(a, t, fmt));
     if (a.last_refill) {
       lines.push(`<div class="small">${t.refilled} ${esc(new Date(a.last_refill).toLocaleDateString(this._hass.locale?.language || "en", { day: "numeric", month: "short" }))}</div>`);
@@ -757,11 +757,11 @@ class LevelWatchCard extends HTMLElement {
       : `<div class="cstage">${esc(t.normal)}</div>`;
     let hint = "";
     if (a.next_threshold && Number.isFinite(a.hours_to_next)) {
-      hint = `${a.next_threshold} ${t.in_short} ${this._duration(a.hours_to_next, t, fmt)}`;
+      hint = `${a.next_threshold} ${t.in_short} ${this._duration(a.hours_to_next, t, fmt, true)}`;
     } else if (Number.isFinite(a.days_left)) {
       hint = this._duration(a.days_left * 24, t, fmt);
     } else if (Number.isFinite(a.hours_to_full)) {
-      hint = `${t.full_in} ${this._duration(a.hours_to_full, t, fmt)}`;
+      hint = `${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`;
     }
     const icon = TREND_ICON[a.trend]
       ? `<svg class="ticon ${a.trend}" viewBox="0 0 24 24"><path d="${TREND_ICON[a.trend]}"/></svg>` : "";
@@ -812,7 +812,8 @@ class LevelWatchCard extends HTMLElement {
     return `<div class="trend">${icon}<span>${esc(t[trend] || trend)}${rate}</span></div>`;
   }
 
-  _duration(hours, t, fmt) {
+  /** `afterIn`: the text follows "in", which German wants with "Tagen". */
+  _duration(hours, t, fmt, afterIn = false) {
     if (!Number.isFinite(hours)) return "";
     if (hours < 1) return `${Math.max(1, Math.round(hours * 60))} ${t.min_u}`;
     if (hours < 48) {
@@ -821,14 +822,14 @@ class LevelWatchCard extends HTMLElement {
       return m ? `${h} ${t.h} ${m} ${t.min_u}` : `${h} ${t.h}`;
     }
     const d = hours / 24;
-    return `${fmt(d, 0)} ${Math.round(d) === 1 ? t.day : t.days}`;
+    return `${fmt(d, 0)} ${Math.round(d) === 1 ? t.day : afterIn ? t.days_in : t.days}`;
   }
 
   _nextLine(a, t, fmt) {
     if (!a.next_threshold || !Number.isFinite(a.hours_to_next)) return "";
     const th = (a.thresholds || []).find((x) => x.name === a.next_threshold);
     const dot = th ? `<span class="dot" style="background:${esc(th.color)}"></span>` : "";
-    return `<div class="line">${dot}${esc(a.next_threshold)} ${t.in} <b>${esc(this._duration(a.hours_to_next, t, fmt))}</b></div>`;
+    return `<div class="line">${dot}${esc(a.next_threshold)} ${t.in} <b>${esc(this._duration(a.hours_to_next, t, fmt, true))}</b></div>`;
   }
 
   _waterStats(a, level, hasLevel, fmt, t) {
@@ -864,7 +865,7 @@ class LevelWatchCard extends HTMLElement {
       lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
     }
     if (Number.isFinite(a.hours_to_full)) {
-      lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt))}</b></div>`);
+      lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt, true))}</b></div>`);
     }
     return `
       <div class="big">${big}</div>

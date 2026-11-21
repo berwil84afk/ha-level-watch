@@ -64,7 +64,7 @@
       "init": {
         "title": "Level-Watch-Einstellungen",
         "menu_options": {
-          "settings": "Sensor- und Tendenz-Einstellungen",
+          "settings": "Sensor- und Tendenzeinstellungen",
           "add_threshold": "Schwellenwert hinzufügen",
           "edit_threshold": "Schwellenwert bearbeiten",
           "remove_threshold": "Schwellenwerte löschen",
@@ -102,13 +102,13 @@
         },
         "data_description": {
           "name": "Z. B. Meldestufe 1, Reserve oder Überlauf.",
-          "value": "Pegel in cm, gleicher Bezug wie der Pegel-Sensor.",
+          "value": "Pegel in cm, gleicher Bezug wie der Sensor Pegel.",
           "direction": "Steigend für Hochwasser und vollen Tank, fallend für Niedrigwasser und Reserve.",
           "hysteresis": "So weit muss der Pegel zurückgehen, bevor die Schwelle aufgehoben wird. Verhindert Meldungen, wenn er um den Wert pendelt.",
           "color": "Farbe dieser Stufe in der Karte. Leer: orange bei steigend, blau bei fallend.",
           "notify": "Meldung, wenn die Schwelle erreicht wird.",
-          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer notify-Dienst.",
-          "critical": "Nur Companion App: klingelt auch im Stumm-Modus (iOS kritische Mitteilung, Android Alarm-Kanal).",
+          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer Benachrichtigungsdienst (notify).",
+          "critical": "Nur Companion App: klingelt auch, wenn das Handy lautlos ist (iOS: kritische Mitteilung, Android: Alarmkanal).",
           "message": "Leer für den Standardtext. Platzhalter: {name}, {threshold}, {value}, {level}, {trend}, {rate}.",
           "clear_message": "Auch melden, wenn die Schwelle wieder aufgehoben ist.",
           "repeat": "Meldung wiederholen, solange die Schwelle gilt. 0 = einmal."
@@ -142,7 +142,7 @@
             "description": "Feineinstellungen; die Vorgaben passen für die meisten Sensoren.",
             "data": {
               "trend_window": "Zeitfenster Tendenz",
-              "trend_deadband": "Stabil-Bereich",
+              "trend_deadband": "Stabilbereich",
               "smoothing": "Glättung",
               "stale_timeout": "Veraltet nach",
               "max_jump": "Max. Sprung",
@@ -202,7 +202,7 @@
         },
         "data_description": {
           "critical": "Gilt nur für Meldestufe 3 und 4 bzw. Fast leer.",
-          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer notify-Dienst."
+          "targets": "Companion App, dauerhafte Meldung in Home Assistant, Telegram, E-Mail oder ein anderer Benachrichtigungsdienst (notify)."
         }
       }
     },

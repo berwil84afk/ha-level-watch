@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Level Watch Screenshots</title>
+<!--
+  Renders the README screenshots with fixed sample data.
+  ?lang=en|de  &shot=styles|tanks|editor  &theme=dark|light
+  dev/make_screenshots.py photographs every combination with a headless browser.
+-->
+<style>
+  :root {
+    --primary-text-color: #212121; --secondary-text-color: #727272; --divider-color: #e0e0e0;
+    --card-background-color: #fff; --warning-color: #ff9800; --error-color: #db4437;
+    --primary-color: #03a9f4; --page: #f0f2f4;
+  }
+  :root.dark {
+    --primary-text-color: #e1e1e1; --secondary-text-color: #9b9b9b; --divider-color: #3a3a3a;
+    --card-background-color: #1c1c1c; --page: #111;
+  }
+  html, body { margin: 0; background: var(--page); }
+  body { font-family: Roboto, "Segoe UI", system-ui, sans-serif; padding: 20px; box-sizing: border-box; }
+  .grid { display: grid; gap: 16px; align-items: start; }
+  .styles { grid-template-columns: 1fr 1fr; width: 960px; }
+  .styles .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .tanks { grid-template-columns: repeat(3, 1fr); width: 1100px; }
+  .editor { width: 560px; height: 760px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // Stand-in for Home Assistant's ha-card, styled like it: page CSS does not
+  // reach into the card's shadow DOM, so the element brings its own style.
+  customElements.define("ha-card", class extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: "open" }).innerHTML = `<style>
+        :host { display: block; background: var(--card-background-color); border-radius: 12px;
+          border: 1px solid var(--divider-color); box-sizing: border-box; }
+      </style><slot></slot>`;
+    }
+  });
+</script>
+<script src="../custom_components/level_watch/www/level-watch-card.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  const LANG = q.get("lang") === "de" ? "de" : "en";
+  const shot = q.get("shot") || "styles";
+  if ((q.get("theme") || "dark") === "dark") document.documentElement.classList.add("dark");
+  document.documentElement.lang = LANG;
+
+  const L = {
+    en: {
+      river: "River Rhine", low: "Low water", w1: "Warning level 1", w2: "Warning level 2", w3: "Warning level 3",
+      oil: "Heating oil", reserve: "Reserve", empty: "Almost empty", cistern: "Rainwater cistern",
+      full: "Overflow", barrel: "Rain barrel", pct: "Oil tank (sensor in %)",
+    },
+    de: {
+      river: "Rhein", low: "Niedrigwasser", w1: "Meldestufe 1", w2: "Meldestufe 2", w3: "Meldestufe 3",
+      oil: "Heizöl", reserve: "Reserve", empty: "Fast leer", cistern: "Regenwasserzisterne",
+      full: "Überlauf", barrel: "Regentonne", pct: "Öltank (Sensor in %)",
+    },
+  }[LANG];
+
+  const river = [
+    { name: L.low, value: 150, direction: "below", color: "#1976d2" },
+    { name: L.w1, value: 500, direction: "above", color: "#fbc02d" },
+    { name: L.w2, value: 600, direction: "above", color: "#f57c00" },
+    { name: L.w3, value: 700, direction: "above", color: "#e53935" },
+  ];
+  const now = new Date().toISOString();
+  function lvl(id, state, a) {
+    return [id, { entity_id: id, state: String(state), last_updated: now,
+      attributes: { source_entity: "sensor.src", quality: "ok", unit: "cm", ...a } }];
+  }
+  const states = Object.fromEntries([
+    lvl("sensor.river", 538.4, { title: L.river, kind: "water", reference_min: 0, reference_max: 800,
+      thresholds: river.map((t) => ({ ...t, active: t.value === 500 })), color: "#fbc02d", stage: L.w1,
+      trend: "rising", rate: 9.6, min_24h: 312, max_24h: 538.4, change_24h: 226.4,
+      next_threshold: L.w2, hours_to_next: 6.4, history: { from: 312, curve: 1.6 } }),
+    lvl("sensor.oil", 64.2, { title: L.oil, kind: "tank", shape: "horizontal_cylinder", top: 120,
+      tank_diameter: 120, reference_min: 5, reference_max: null, percent: 51.6, volume: 2583, capacity: 5000,
+      thresholds: [{ name: L.reserve, value: 25, direction: "below", color: "#f57c00", active: false },
+        { name: L.empty, value: 12, direction: "below", color: "#e53935", active: false }],
+      color: "#26a69a", stage: null, trend: "stable", rate: -0.03, consumption: 18.4, days_left: 132,
+      last_refill: "2026-10-03T09:12:00+00:00", history: { from: 65.4, curve: 1 } }),
+    lvl("sensor.cistern", 142, { title: L.cistern, kind: "tank", shape: "vertical_cylinder", top: 200,
+      reference_min: 10, reference_max: 200, percent: 69.5, volume: 4460, capacity: 6280,
+      thresholds: [{ name: L.reserve, value: 50, direction: "below", color: "#f57c00", active: false },
+        { name: L.full, value: 190, direction: "above", color: "#1976d2", active: false }],
+      color: "#26a69a", stage: null, trend: "rising", rate: 2.5, hours_to_full: 19.2,
+      next_threshold: L.full, hours_to_next: 19.2, history: { from: 96, curve: 1.3 } }),
+    lvl("sensor.barrel", 71, { title: L.barrel, kind: "tank", shape: "box", top: 90,
+      reference_min: 0, reference_max: 90, percent: 78.9, volume: 213, capacity: 270,
+      thresholds: [{ name: L.reserve, value: 15, direction: "below", color: "#f57c00", active: false }],
+      color: "#26a69a", stage: null, trend: "falling", rate: -1.2, consumption: 9.1, days_left: 23.4,
+      history: { from: 90, curve: 0.8 } }),
+    lvl("sensor.pct", 18.5, { title: L.pct, kind: "tank", unit: "%", shape: "horizontal_cylinder", top: 100,
+      reference_min: 0, reference_max: 100,
+      thresholds: [{ name: L.reserve, value: 20, direction: "below", color: "#f57c00", active: true },
+        { name: L.empty, value: 10, direction: "below", color: "#e53935", active: false }],
+      color: "#f57c00", stage: L.reserve, trend: "falling", rate: -0.06, consumption: 1.4, days_left: 13.2,
+      next_threshold: L.empty, hours_to_next: 146, history: { from: 20, curve: 1 } }),
+  ]);
+
+  // Smooth, believable history: from `from` to the current value over 24 h.
+  function history(id) {
+    const s = states[id];
+    const end = parseFloat(s.state);
+    const { from, curve } = s.attributes.history;
+    const t1 = Date.now() / 1000;
+    const rows = [];
+    for (let i = 0; i <= 96; i += 1) {
+      const f = (i / 96) ** curve;
+      rows.push({ s: (from + (end - from) * f).toFixed(1), lu: t1 - (96 - i) * 900 });
+    }
+    return rows;
+  }
+
+  const targets = {
+    persistent_notification: LANG === "de" ? "Home Assistant (dauerhafte Meldung)" : "Home Assistant (persistent notification)",
+    "service:mobile_app_phone": "notify.mobile_app_phone",
+    "entity:notify.telegram": "Telegram (notify.telegram)",
+  };
+  const hass = {
+    states, entities: {}, devices: {},
+    locale: { language: LANG }, language: LANG,
+    themes: { darkMode: document.documentElement.classList.contains("dark") },
+    user: { is_admin: true },
+    async callWS(msg) {
+      if (msg.type === "level_watch/thresholds") {
+        const a = states[msg.entity_id].attributes;
+        return {
+          entry_id: "x", can_edit: true, targets,
+          thresholds: a.thresholds.map((th, i) => ({
+            id: `t${i}`, name: th.name, value: th.value, direction: th.direction, hysteresis: 5,
+            color: [1, 3, 5].map((k) => parseInt(th.color.slice(k, k + 2), 16)),
+            notify: i > 0, targets: i > 0 ? ["service:mobile_app_phone"] : [],
+            critical: i === 3, message: "", clear_message: true, repeat: 0,
+          })),
+        };
+      }
+      return { [msg.entity_ids[0]]: history(msg.entity_ids[0]) };
+    },
+  };
+
+  function card(entity, style, extra = {}) {
+    const el = document.createElement("level-watch-card");
+    el.setConfig({ entity, style, title: states[entity].attributes.title, ...extra });
+    el.hass = hass;
+    return el;
+  }
+
+  const root = document.getElementById("root");
+  if (shot === "styles") {
+    root.className = "grid styles";
+    root.append(card("sensor.river", "forecast"), card("sensor.river", "classic"));
+    root.append(card("sensor.oil", "ring"));
+    const pair = document.createElement("div");
+    pair.className = "pair";
+    pair.append(card("sensor.cistern", "compact"), card("sensor.pct", "compact"));
+    root.append(pair);
+  } else if (shot === "tanks") {
+    root.className = "grid tanks";
+    root.append(
+      card("sensor.oil", "classic", { show_history: false }),
+      card("sensor.cistern", "classic", { show_history: false }),
+      card("sensor.pct", "classic", { show_history: false }),
+    );
+  } else {
+    root.className = "editor";
+    const c = card("sensor.river", "forecast");
+    root.append(c);
+    setTimeout(async () => {
+      await c._openEditor();
+      c._editor.open.add(2);
+      c._renderEditor();
+    }, 300);
+  }
+</script>
+</body>
+</html>

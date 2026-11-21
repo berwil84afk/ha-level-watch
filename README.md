@@ -1,189 +1,216 @@
 <img src="custom_components/level_watch/brand/icon.png" alt="" width="96" align="right">
 
-# Level Watch für Home Assistant
+# Level Watch for Home Assistant
 
-Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
+**English** · [Deutsch](README.de.md)
 
-> **Stand 0.7.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen und Vorlagen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks, in der du die Schwellen auch bearbeiten kannst.
+Level Watch monitors a **water level** (river, pond, well) or a **tank** (cistern, heating oil) using a sensor you already have. It works out the trend, warns you at thresholds you set, forecasts when the next one will be reached and comes with its own dashboard card.
 
-## Was du bekommst
+![Level Watch card in four styles](docs/screenshots/en/card-styles.png)
 
-| Sensor | Bedeutung |
+## Features
+
+- **Level and trend:** smoothed level, rate of change per hour, trend (rising, falling, stable), minimum, maximum and change over the last 24 hours.
+- **Thresholds:** as many as you like, upwards (flood, full tank) or downwards (low water, reserve), each with hysteresis and its own colour.
+- **Notifications:** Companion app (optionally as a critical alert that sounds even on silent), persistent notification in Home Assistant or any other notify service such as Telegram or email. Optional all-clear and repeat.
+- **Forecast:** which threshold comes next and when it will be reached at the current rate.
+- **Tanks:** volume in litres for vertical cylinders, horizontal cylinders and boxes, plus consumption per day, range in days, time to full and refill detection.
+- **Sensors in %:** a fill level sensor in percent works too. Everything is then shown in %.
+- **Card:** four styles, a scale, threshold lines with tooltips, a 24-hour history and a threshold editor for admins.
+- **Reliable:** readings and threshold states survive a restart, so no notification is sent twice. A failed sensor does not trigger an alert.
+
+> Level Watch does not replace official flood warnings.
+
+## Requirements
+
+- Home Assistant 2025.2 or later. The integration icon appears from Home Assistant 2026 onwards.
+- A sensor that reports the level as a length (mm, cm, m, in, ft) or in %.
+
+## Installation
+
+### HACS (recommended)
+
+1. In HACS, open the menu (⋮) and choose **Custom repositories**.
+2. Add `https://github.com/berwil84afk/ha-level-watch` with the type **Integration**.
+3. Search for **Level Watch**, download it and restart Home Assistant.
+
+### Manual
+
+1. Copy the folder `custom_components/level_watch` to `/config/custom_components/level_watch`.
+2. Restart Home Assistant.
+
+## Setup
+
+Go to **Settings → Devices & services → Add integration → Level Watch**. Set up one entry for each level you want to monitor.
+
+| Field | What it means |
 |---|---|
-| Pegel | geglätteter Pegel in cm (Einheit in HA umstellbar) |
-| Füllstand | Pegel in % zwischen *Bezug unten* und *Bezug oben* (nur wenn *Bezug oben* gesetzt) |
-| Tendenz | steigend / fallend / stabil |
-| Änderungsrate | cm pro Stunde, lineare Regression über das Tendenz-Zeitfenster |
-| Minimum / Maximum 24 h | Extremwerte der letzten 24 Stunden |
-| Änderung 24 h | Unterschied zu vor 24 Stunden |
-| Datenqualität | OK, veraltet, Sensor nicht verfügbar oder keine Daten |
-| Stufe | Name der schwersten aktiven Schwelle oder „Normal“, Farbe im Attribut `color` |
-| Nächste Schwelle | Schwelle, auf die sich der Pegel gerade zubewegt |
-| Zeit bis nächste Schwelle | Stunden bis dahin bei gleichbleibender Rate |
-| *Binary-Sensor je Schwelle* | an, solange die Schwelle erreicht ist |
+| Level sensor | The sensor that reports the level, or the distance down to the surface. |
+| Unit of the sensor | *Automatic* uses the sensor's own unit. Choose one if the sensor has none. |
+| Type | *Water level* or *Tank*. |
+| Measurement | *Level*: the sensor reports the height of the surface. *Distance from above*: the sensor is mounted on top and measures down to the surface, like most ultrasonic and radar sensors. |
+| Sensor mounting height | Only for *Distance from above*: height of the sensor above the zero point, for example the tank bottom. |
+| Offset | Added to every reading, for example to correct the gauge zero. |
+| Reference bottom / top | The levels that count as 0 % and 100 %. They also set the range of the card. |
+| Tank | Only for tanks: shape and inner dimensions (see [Tanks](#tanks)). |
 
-Stufe, nächste Schwelle und Zeit bis dahin gibt es nur, wenn mindestens eine Schwelle angelegt ist.
+### Where the level can come from
 
-Die Messwerte und der Zustand der Schwellen werden gespeichert. Tendenz und 24-h-Werte überstehen so einen Neustart, und eine Meldung kommt nach einem Neustart nicht doppelt.
+- **Ultrasonic or radar sensors**, for example with ESPHome or Tasmota.
+- **Pressure sensors** in a well or tank.
+- **Official river gauges** through the built-in [PEGELONLINE](https://www.home-assistant.io/integrations/pegel_online/) integration (German federal waterways). Data: WSV, PEGELONLINE, licence DL-DE->Zero-2.0. The data are raw and unchecked.
+- **Fill level sensors in %**, for example from a heating oil or cistern gauge. Level, references, thresholds, rate (%/h) and the card then all work in %. For a tank you get consumption in % per day and the range in days, but no litres. Without *Reference top*, 100 % is used. *Distance from above* is not possible with %.
 
-## Schwellenwerte und Meldungen
+## Thresholds and notifications
 
-Schwellen legst du auf drei Wegen an:
+There are three ways to add thresholds:
 
-- **In der Karte:** Admins sehen oben rechts einen Stift. Er öffnet einen Editor mit Live-Vorschau des Zonenbalkens. Dort legst du Schwellen an, änderst und löschst sie und stellst die Meldungen ein. *Speichern* übernimmt alles auf einmal.
-- **Aus einer Vorlage:** *Level Watch → Konfigurieren → Schwellen aus Vorlage hinzufügen.*
-  - *Flusspegel:* Niedrigwasser und Meldestufen 1–4.
-  - *Tank:* fast leer, Reserve und voll.
-  - Du trägst nur die Werte ein, die du brauchst. Name, Farbe, Richtung und Hysterese sind vorbelegt. „Kritisch“ gilt dabei nur für Meldestufe 3 und 4 bzw. „Fast leer“.
-- **Einzeln:** *Level Watch → Konfigurieren → Schwellenwert hinzufügen.*
+1. **In the card:** admins see a pencil in the top right corner of the card. It opens the threshold editor with a live preview.
+2. **From a template:** **Level Watch → Configure → Add thresholds from a template.**
+   - *River gauge:* low water and warning levels 1 to 4.
+   - *Tank:* almost empty, reserve and full.
+   - Enter only the values you need. Name, colour, direction and hysteresis are filled in for you.
+3. **One by one:** **Level Watch → Configure → Add threshold.**
 
-Je Schwelle:
+![Threshold editor in the card](docs/screenshots/en/threshold-editor.png)
 
-| Feld | Bedeutung |
+Each threshold has these settings:
+
+| Setting | What it means |
 |---|---|
-| Name, Wert | z. B. „Meldestufe 1“ bei 500 cm |
-| Erreicht, wenn der Pegel | auf oder über den Wert steigt (Hochwasser, voller Tank) oder auf oder unter den Wert fällt (Niedrigwasser, Reserve) |
-| Hysterese | so weit muss der Pegel zurückgehen, bevor die Schwelle aufgehoben wird (Vorgabe 2 cm) |
-| Farbe | Farbe der Stufe, später für die Karte |
-| Meldung senden, Melden über | Companion App, dauerhafte Meldung in Home Assistant oder jeder andere notify-Dienst (Telegram, E-Mail …) |
-| Kritisch | nur Companion App: klingelt auch im Stumm-Modus |
-| Meldungstext | leer für den Standardtext; Platzhalter `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}` |
-| Entwarnung senden | auch melden, wenn die Schwelle aufgehoben ist |
-| Wiederholen alle | Meldung wiederholen, solange die Schwelle gilt (0 = einmal) |
+| Name, value | For example *Warning level 1* at 500 cm. |
+| Direction | Reached when the level *rises to or above* the value (flood, full tank) or *falls to or below* it (low water, reserve). |
+| Hysteresis | How far the level has to move back before the threshold clears. This stops a flood of messages when the level hovers around the value. Default: 2 cm. |
+| Colour | Colour of this stage in the card. |
+| Send notification, notify via | Companion app, persistent notification or any notify service. |
+| Critical | Companion app only: the message sounds even when the phone is on silent. |
+| Message | Leave empty for the standard text. Placeholders: `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}`. |
+| Send all-clear | Also notify when the threshold clears. |
+| Repeat every | Repeat the message while the threshold holds. 0 means once. |
 
-Für Pegel an Bundeswasserstraßen nennt Pegelonline auf der Seite jeder Messstelle Kennwerte wie MNW (mittleres Niedrigwasser), NNW (niedrigstes bekanntes Niedrigwasser) und HHW (höchstes bekanntes Hochwasser). Sie sind in cm über dem Pegelnullpunkt angegeben, genau wie die Werte der PEGELONLINE-Integration. Du kannst sie also direkt als Schwellen eintragen, z. B. MNW als *Niedrigwasser*.
+Thresholds are only checked while the data quality is *OK*. A failed or stale sensor therefore never sends an alert. If you want to know about that too, build an automation on the *Data quality* sensor.
 
-Ausgewertet wird nur, solange die Datenqualität „OK“ ist. Ein ausgefallener Sensor löst also keine Meldung aus. Dafür kannst du eine eigene Automation auf den Datenqualitäts-Sensor bauen.
+> **Tip for German river gauges:** on the page of each PEGELONLINE station you find reference values such as MNW (mean low water), NNW (lowest known low water) and HHW (highest known flood). They are given in cm above the gauge zero, just like the readings of the PEGELONLINE integration, so you can use them directly as thresholds.
 
-Bei jedem Erreichen und Aufheben einer Schwelle feuert das Event `level_watch_threshold` mit `name`, `threshold`, `value`, `direction`, `active` und `level`. Darauf kannst du eigene Automationen aufbauen:
+### Automations
+
+Each time a threshold is reached or clears, Level Watch fires the event `level_watch_threshold` with `name`, `threshold`, `value`, `direction`, `active` and `level`:
 
 ```yaml
 triggers:
   - trigger: event
     event_type: level_watch_threshold
     event_data:
-      threshold: Meldestufe 2
+      threshold: Warning level 2
       active: true
 actions:
   - action: switch.turn_on
     target:
-      entity_id: switch.pumpe
+      entity_id: switch.pump
 ```
 
-## Datenquellen
+## Sensors
 
-Level Watch nimmt jeden Sensor mit einer Längeneinheit (mm, cm, m, in, ft) oder in Prozent, zum Beispiel:
-
-- **Ultraschall- oder Radarsensor** über ESPHome oder Tasmota. Misst er von oben nach unten, wähle *Messart: Abstand von oben* und gib die Einbauhöhe an.
-- **Drucksensor** im Brunnen oder Tank.
-- **Offizielle Pegel** über die in Home Assistant enthaltene Integration [PEGELONLINE](https://www.home-assistant.io/integrations/pegel_online/). Daten: WSV, PEGELONLINE, Lizenz DL-DE->Zero-2.0. Es sind ungeprüfte Rohdaten.
-
-- **Füllstandssensor in %**, etwa von einem Heizöl- oder Zisternenmodul. Level Watch rechnet dann durchgehend in %: Pegel, Bezüge, Schwellen, Rate (%/h), Min/Max und die Karte. Beim Tank gibt es Verbrauch in %/Tag und die Reichweite in Tagen, aber keine Liter (die Tankform wird dafür nicht gebraucht). Ohne *Bezug oben* gilt 100 %. *Abstand von oben* ist bei % nicht möglich.
-
-> Level Watch ersetzt keine amtlichen Hochwasserwarnungen.
-
-## Installation
-
-### HACS
-
-1. HACS → ⋮ → *Benutzerdefinierte Repositories* → `https://github.com/berwil84afk/ha-level-watch`, Typ *Integration* → *Hinzufügen*.
-2. „Level Watch“ in HACS suchen → *Herunterladen*.
-3. Home Assistant neu starten.
-
-### Manuell
-
-1. Den Ordner `custom_components/level_watch` nach `/config/custom_components/level_watch` kopieren.
-2. Home Assistant neu starten.
-
-## Einrichtung
-
-*Einstellungen → Geräte & Dienste → Integration hinzufügen → Level Watch.* Für jeden überwachten Pegel richtest du einen eigenen Eintrag ein.
-
-| Feld | Bedeutung |
+| Sensor | What it shows |
 |---|---|
-| Pegelsensor | Quelle des Pegels oder Abstands |
-| Einheit des Sensors | *Automatisch* nimmt die Einheit des Sensors |
-| Art | Wasserpegel oder Tank |
-| Messart | *Pegel* oder *Abstand von oben* |
-| Einbauhöhe | nur bei Abstand: Höhe des Sensors über dem Nullpunkt (z. B. Tankboden) |
-| Korrektur | wird zu jedem Wert addiert |
-| Bezug unten / oben | Pegel für 0 % und 100 % |
+| Level | Smoothed level in cm (or %). You can change the display unit in Home Assistant. |
+| Fill level | Level in % between *Reference bottom* and *Reference top*. By volume for tanks with a shape. |
+| Trend | Rising, falling or stable. |
+| Rate of change | cm (or %) per hour, calculated over the trend window. |
+| Minimum / maximum 24 h | Lowest and highest value of the last 24 hours. |
+| Change 24 h | Difference to 24 hours ago. |
+| Data quality | OK, stale, sensor unavailable or no data. |
+| Stage | Name of the most severe active threshold, or *Normal*. The colour is in the attribute `color`. |
+| Next threshold | The threshold the level is moving towards. |
+| Time to next threshold | Hours until then at the current rate. |
+| One binary sensor per threshold | On while the threshold is reached. |
 
-In den Optionen unter *Tendenz und Datenqualität*:
+*Stage*, *Next threshold* and *Time to next threshold* only exist once you have at least one threshold.
 
-| Einstellung | Vorgabe | Bedeutung |
-|---|---|---|
-| Zeitfenster Tendenz | 60 min | Zeitraum der Ratenberechnung |
-| Stabil-Bereich | 1 cm/h | Raten innerhalb ± gelten als stabil |
-| Glättung | 5 min | Median gegen einzelne Ausreißer, 0 = aus |
-| Veraltet nach | 60 min | ohne Meldung des Sensors gilt der Wert als veraltet |
-| Max. Sprung | 0 (aus) | größere Sprünge zählen erst nach 3 übereinstimmenden Messungen |
-| Zeitraum Verbrauch | 7 d | nur Tank: über diesen Zeitraum wird der Tagesverbrauch gemittelt |
-| Nachtanken erkennen ab | 5 cm | nur Tank: so viel Anstieg binnen zwei Stunden gilt als Nachtanken, 0 = aus |
+## Tanks
 
-Für einen Heizöltank, dessen Pegel nur langsam fällt, lohnt ein langes Zeitfenster (z. B. 1440 min) und ein kleiner Stabil-Bereich (z. B. 0,05 cm/h).
+For the type *Tank*, enter the shape and the inner dimensions in the section **Tank**. The zero point is the tank bottom. If your sensor's zero point is somewhere else, correct it with *Offset*.
 
-## Tank
-
-Bei *Art: Tank* gibst du im Abschnitt *Tank* die Form und die Innenmaße an. Der Nullpunkt ist der Tankboden. Liegt dein Sensor-Nullpunkt woanders, gleichst du das mit *Korrektur* aus.
-
-| Form | Maße |
+| Shape | Dimensions |
 |---|---|
-| Stehender Zylinder | Durchmesser |
-| Liegender Zylinder | Durchmesser, Länge |
-| Quader | Länge, Breite |
+| Vertical cylinder | Diameter |
+| Horizontal cylinder | Diameter, length |
+| Box | Length, width |
 
-Damit kommen diese Sensoren dazu:
+![Tank shapes in the card](docs/screenshots/en/tank-shapes.png)
 
-| Sensor | Bedeutung |
+This adds the following sensors:
+
+| Sensor | What it shows |
 |---|---|
-| Volumen | Inhalt in Litern, Fassungsvermögen im Attribut `capacity` |
-| Freies Volumen | so viel passt noch hinein, bis *Bezug oben* (beim liegenden Zylinder sonst bis zum Durchmesser) |
-| Verbrauch pro Tag | Liter pro Tag, gemittelt seit dem letzten Nachtanken über höchstens den eingestellten Zeitraum. Ein Wert erscheint nach 12 Stunden Daten. |
-| Reichweite | Tage, bis *Bezug unten* bei diesem Verbrauch erreicht ist |
-| Zeit bis voll | Stunden bis *Bezug oben*, solange der Pegel steigt (auch ohne Form) |
-| Letztes Nachtanken | Zeitpunkt des letzten erkannten Nachtankens (auch ohne Form) |
+| Volume | Content in litres. The capacity is in the attribute `capacity`. |
+| Free volume | How much still fits in up to *Reference top* (for a horizontal cylinder without it, up to the full diameter). |
+| Consumption per day | Litres per day, averaged since the last refill. It appears after 12 hours of data. |
+| Range | Days until *Reference bottom* is reached at this consumption. |
+| Time to full | Hours until *Reference top* while the level rises. Also without a shape. |
+| Last refill | When the last refill was detected. Also without a shape. |
 
-Mit Form rechnet der *Füllstand* nach Volumen. Beim liegenden Zylinder ist halbe Höhe genau 50 %, ein Viertel der Höhe aber nur etwa 20 %.
+With a shape, the fill level is calculated by volume. In a horizontal cylinder, half the height is exactly 50 %, but a quarter of the height is only about 20 %.
 
-Regen in der Zisterne zählt wie Nachtanken. Danach beginnt die Verbrauchsrechnung von vorn.
+A rise of 5 cm or more within two hours counts as a refill (adjustable). Rain in a cistern counts as a refill too. The consumption is then calculated from scratch.
 
-## Karte
+## Card
 
-Die Integration bringt die Karte **Level Watch** mit. Eine Ressource musst du nicht eintragen. Du findest sie unter *Dashboard bearbeiten → Karte hinzufügen → Level Watch* und kannst sie dort über die Oberfläche einstellen.
+The integration installs the card for you, you do not have to add a resource. Edit a dashboard, choose **Add card** and pick **Level Watch**. Everything can be set in the card editor.
 
-- **Wasserpegel:** Pegellatte mit Skala, Wasserbecken mit bewegter Oberfläche und den Schwellen als Linien. Eine erreichte Schwelle wird durchgezogen dargestellt.
-- **Tank:** Die Darstellung folgt der eingestellten Form: liegender Zylinder (Ansicht von der Stirnseite), stehender Zylinder oder Quader. Angezeigt werden Füllstand, Liter, Reichweite, Verbrauch und *Zeit bis voll*.
-- **Farbe:** Wasser und Akzente nehmen die Farbe der aktiven Stufe an, sonst Blau.
-- **Dazu:** Tendenzpfeil mit Rate, *Nächste Schwelle in …*, Verlauf der letzten 24 Stunden mit Schwellenlinien und ein Hinweis, wenn die Daten veraltet sind oder der Sensor fehlt.
-
-Die Karte hat vier Stile:
-
-| Stil | Inhalt |
+| Style | Best for |
 |---|---|
-| `forecast` (Standard) | Zonenbalken mit den Stufen und dem aktuellen Pegel, darunter Verlauf und gestrichelte Prognose bis zur nächsten Schwelle, dazu „Meldestufe 2 voraussichtlich heute 14:49“ bzw. „Reicht noch 132 Tage (bis 2. Apr.)“ |
-| `classic` | Pegellatte mit Wasserbecken oder Tankform, wie oben beschrieben |
-| `ring` | Füllstandsring mit Schwellen-Markierungen, gut für Tanks |
-| `compact` | schmale Kachel für halbe Breite: Balken, Wert, Stufe, Hinweis |
+| `forecast` (default) | Rivers and anything where *when* matters: zone bar with the stages, history and a dashed forecast up to the next threshold, plus a line such as *Warning level 2 expected tomorrow 04:07*. |
+| `classic` | A gauge staff with a basin, or the tank in its real shape, both with a scale and moving water. |
+| `ring` | Tanks: fill ring with threshold marks, range, consumption and last refill. |
+| `compact` | Half-width tile with bar, value, stage and a short hint. |
+
+Water and accents take the colour of the active stage. Hover over a zone or a threshold line to see its name and value.
 
 ```yaml
 type: custom:level-watch-card
-entity: sensor.rhein_pegel   # oder eine andere Entität desselben Level-Watch-Geräts
-style: forecast              # forecast, classic, ring oder compact
-title: Rhein                 # optional, sonst der Gerätename
-mode: auto                   # auto, water oder tank
-show_history: true           # false blendet den Verlauf aus
-history_hours: 24            # Länge des Verlaufs
-forecast_hours: 12           # wie weit die Prognose reicht
+entity: sensor.rhine_level   # or any other entity of the same Level Watch device
+style: forecast              # forecast, classic, ring or compact
+title: River Rhine           # optional, the device name is used otherwise
+mode: auto                   # auto, water or tank
+show_history: true           # false hides the history
+history_hours: 24            # length of the history
+forecast_hours: 12           # how far the forecast reaches
 ```
 
-## Entwicklung
+## Advanced settings
+
+In **Level Watch → Configure → Sensor and trend settings**, section *Trend and data quality*:
+
+| Setting | Default | What it does |
+|---|---|---|
+| Trend window | 60 min | Period over which the rate of change is calculated. |
+| Stable range | 1 cm/h | Rates within plus or minus this value count as stable. |
+| Smoothing | 5 min | Median over this period, removes single outliers. 0 switches it off. |
+| Stale after | 60 min | Data counts as stale if the sensor reports nothing for this long. |
+| Max. jump | 0 (off) | Larger jumps only count once 3 readings confirm them. |
+| Consumption period | 7 days | Tanks only: period over which the daily consumption is averaged. |
+| Refill detection | 5 cm | Tanks only: a rise of at least this much within two hours counts as a refill. 0 switches it off. |
+
+For a heating oil tank whose level falls only slowly, a long trend window (for example 1440 min) and a small stable range (for example 0.05 cm/h) work best.
+
+## Troubleshooting
+
+- **The card looks old after an update:** reload the page with Ctrl+F5. In the Companion app, reset the frontend cache in the app settings.
+- **Data quality shows *Sensor unavailable*:** the source sensor is unavailable or reports a different unit than the entry was set up with.
+- **No consumption or range:** they need at least 12 hours of data since the last refill.
+
+## Development
 
 ```bash
 pip install -r requirements_test.txt
 pytest
 ```
 
-Die Karte siehst du ohne Home Assistant mit Testdaten: Starte `python -m http.server 8766` im Repo und öffne `http://127.0.0.1:8766/dev/preview.html`. Mit `?style=ring` usw. siehst du nur einen Stil.
+To see the card without Home Assistant, run `python -m http.server 8766` in the repository and open `http://127.0.0.1:8766/dev/preview.html`. Add `?style=ring` (or another style) to show only one style.
 
-Die Tests laufen auf Linux (GitHub Actions). Home Assistant selbst unterstützt Windows nicht.
+The screenshots in this README are made with `python dev/make_screenshots.py` while that server is running. It needs Chrome or Edge and Pillow.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE).
