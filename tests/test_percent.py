@@ -105,6 +105,7 @@ async def test_percent_sensors(
     assert "device_class" not in level.attributes
     assert level.attributes["unit"] == "%"
     assert level.attributes["top"] == 100  # top reference defaults to 100 %
+    assert level.attributes["shape"] == "box"  # drawn by the card, no litres
     assert _state(hass, "rate").attributes["unit_of_measurement"] == "%/h"
     registry = er.async_get(hass)
     for key in ("percent", "volume", "free_volume"):

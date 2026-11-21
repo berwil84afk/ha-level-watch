@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.2";
+const CARD_VERSION = "0.7.3";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -172,15 +172,20 @@ class LevelWatchCard extends HTMLElement {
   }
 
   getCardSize() {
-    return this.getGridOptions().rows;
+    const style = this._config?.style || "forecast";
+    if (style === "compact") return 2;
+    if (style === "ring") return 3;
+    return this._historyHours() || style === "forecast" ? 6 : 4;
   }
 
   getGridOptions() {
     const style = this._config?.style || "forecast";
-    if (style === "compact") return { columns: 6, rows: 2, min_columns: 3, min_rows: 2 };
-    if (style === "ring") return { columns: 12, rows: 3, min_columns: 6, min_rows: 3 };
-    if (style === "forecast") return { columns: 12, rows: 5, min_columns: 6, min_rows: 4 };
-    return { columns: 12, rows: this._historyHours() ? 5 : 4, min_columns: 6, min_rows: 3 };
+    // "auto" lets the dashboard size the card to its content, so nothing
+    // spills into the card below whatever the style shows.
+    if (style === "compact") return { columns: 6, rows: "auto", min_columns: 3, min_rows: 2 };
+    if (style === "ring") return { columns: 12, rows: "auto", min_columns: 6, min_rows: 3 };
+    if (style === "forecast") return { columns: 12, rows: "auto", min_columns: 6, min_rows: 4 };
+    return { columns: 12, rows: "auto", min_columns: 6, min_rows: 3 };
   }
 
   // -- data ---------------------------------------------------------------------
@@ -932,7 +937,13 @@ class LevelWatchCard extends HTMLElement {
   _tankSvg(a, level, color) {
     const topH = Number.isFinite(a.top) && a.top > 0 ? a.top
       : Math.max(level || 0, ...(a.thresholds || []).map((x) => x.value), 1) * 1.1;
-    const frac = (v) => Math.max(0, Math.min(1, v / topH));
+    // A tank in % reports its content; in a horizontal cylinder that is not
+    // the fill height, so draw at the height that holds that share.
+    const byVolume = unitOf(a) === "%" && a.shape === "horizontal_cylinder";
+    const frac = (v) => {
+      const f = clamp01(v / topH);
+      return byVolume ? heightForVolume(f) : f;
+    };
     let outline;
     let box;
     if (a.shape === "horizontal_cylinder") {
@@ -1135,6 +1146,18 @@ function stageAt(ths, v) {
   return null;
 }
 
+/** Fill height (0-1) of a horizontal cylinder that holds the share f (0-1). */
+function heightForVolume(f) {
+  const full = Math.PI / 4; // cross-section of diameter 1
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 30; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (segmentArea(1, mid) / full < f) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 /** Color of the stage that would be active at value v (hysteresis ignored). */
 function stageColorAt(ths, v, normal) {
   const above = ths.filter((x) => x.direction === "above" && v >= x.value);
@@ -1167,7 +1190,8 @@ function waves(surface, x, width, bottom, fill) {
 }
 
 const STYLE = `<style>
-  :host { display: block; }
+  :host { display: block; height: 100%; }
+  #card { height: 100%; }
   ha-card { padding: 16px; cursor: pointer; overflow: hidden; height: 100%; box-sizing: border-box;
     display: flex; flex-direction: column; gap: 8px; }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

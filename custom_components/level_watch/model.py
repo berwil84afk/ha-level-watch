@@ -118,6 +118,8 @@ class Settings:
     thresholds: tuple[Threshold, ...] = ()
     level_unit: str = UNIT_CM  # cm, or % for a percentage source
     tank: tank.TankShape | None = None  # only for a tank with a known shape
+    # Shape the card draws; set for a tank in % too, which has no volume.
+    display_shape: str | None = None
     consumption_window: float = DEFAULT_CONSUMPTION_WINDOW * 86400  # seconds
     refill_jump: float = DEFAULT_REFILL_JUMP  # cm
 
@@ -166,6 +168,9 @@ class Settings:
             max_jump=opt(CONF_MAX_JUMP, DEFAULT_MAX_JUMP),
             thresholds=tuple(load_thresholds(conf.get(CONF_THRESHOLDS))),
             level_unit=unit,
+            display_shape=(
+                shape.shape if kind == KIND_TANK and shape.shape != tank.NONE else None
+            ),
             # No volume for a source in %: the shape would have nothing to measure.
             tank=shape if kind == KIND_TANK and shape.defined and unit == UNIT_CM else None,
             consumption_window=opt(CONF_CONSUMPTION_WINDOW, DEFAULT_CONSUMPTION_WINDOW)

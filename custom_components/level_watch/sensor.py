@@ -68,7 +68,7 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "volume": _round(snap.volume, 1),
         "capacity": _round(snap.capacity, 1),
         # The card draws everything from this one entity.
-        "shape": s.tank.shape if s.tank else None,
+        "shape": s.display_shape,
         "tank_diameter": s.tank.diameter if s.tank else None,
         "last_refill": snap.last_refill.isoformat() if snap.last_refill else None,
         "top": _top(model),
