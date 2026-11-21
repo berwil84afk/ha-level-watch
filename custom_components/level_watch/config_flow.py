@@ -26,6 +26,7 @@ from .const import (
     CONF_DIAMETER,
     CONF_KIND,
     CONF_LENGTH,
+    CONF_LEVEL_UNIT,
     CONF_MAX_JUMP,
     CONF_MODE,
     CONF_NAME,
@@ -78,15 +79,12 @@ from .thresholds import (
 def _number(
     min_value: float, max_value: float, step: float, unit: str | None = None
 ) -> selector.NumberSelector:
-    return selector.NumberSelector(
-        selector.NumberSelectorConfig(
-            min=min_value,
-            max=max_value,
-            step=step,
-            unit_of_measurement=unit,
-            mode=selector.NumberSelectorMode.BOX,
-        )
+    config = selector.NumberSelectorConfig(
+        min=min_value, max=max_value, step=step, mode=selector.NumberSelectorMode.BOX
     )
+    if unit:
+        config["unit_of_measurement"] = unit
+    return selector.NumberSelector(config)
 
 
 def _select(options: list[str], key: str) -> selector.SelectSelector:
@@ -101,6 +99,8 @@ def _select(options: list[str], key: str) -> selector.SelectSelector:
 
 LENGTH = _number(-100000, 100000, 0.1, "cm")
 POSITIVE_LENGTH = _number(0, 100000, 0.1, "cm")
+# Level values follow the source: cm, or % for a percentage sensor.
+LEVEL = _number(-100000, 100000, 0.1)
 
 
 def _basic_schema(defaults: Mapping[str, Any], *, with_name: bool) -> dict:
@@ -134,11 +134,11 @@ def _basic_schema(defaults: Mapping[str, Any], *, with_name: bool) -> dict:
             opt(CONF_SENSOR_HEIGHT): POSITIVE_LENGTH,
             vol.Required(
                 CONF_OFFSET, default=defaults.get(CONF_OFFSET, DEFAULT_OFFSET)
-            ): LENGTH,
+            ): LEVEL,
             vol.Required(
                 CONF_REF_MIN, default=defaults.get(CONF_REF_MIN, DEFAULT_REF_MIN)
-            ): LENGTH,
-            opt(CONF_REF_MAX): LENGTH,
+            ): LEVEL,
+            opt(CONF_REF_MAX): LEVEL,
             vol.Required(CONF_TANK): section(
                 _tank_schema(defaults.get(CONF_TANK) or {}),
                 {"collapsed": defaults.get(CONF_KIND) != KIND_TANK},
@@ -206,11 +206,11 @@ def _validate(hass: HomeAssistant, data: Mapping[str, Any]) -> dict[str, str]:
     ref_max = data.get(CONF_REF_MAX)
     if ref_max is not None and ref_max <= data.get(CONF_REF_MIN, DEFAULT_REF_MIN):
         errors[CONF_REF_MAX] = "max_below_min"
-    if data.get(CONF_SOURCE_UNIT, UNIT_AUTO) == UNIT_AUTO:
-        state = hass.states.get(data[CONF_SOURCE])
-        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
-        if not calc.is_length_unit(unit):
-            errors[CONF_SOURCE_UNIT] = "unit_unknown"
+    unit = _source_unit(hass, data)
+    if not calc.is_supported_unit(unit):
+        errors[CONF_SOURCE_UNIT] = "unit_unknown"
+    elif unit == calc.PERCENT and data.get(CONF_MODE) == MODE_DISTANCE:
+        errors[CONF_MODE] = "percent_distance"
     tank_conf = data.get(CONF_TANK) or {}
     shape = tank.TankShape(
         shape=tank_conf.get(CONF_SHAPE) or tank.NONE,
@@ -223,9 +223,27 @@ def _validate(hass: HomeAssistant, data: Mapping[str, Any]) -> dict[str, str]:
     return errors
 
 
-def _with_cleared_optionals(data: dict[str, Any]) -> dict[str, Any]:
-    """Store emptied optional fields as None so older values do not stick."""
-    return {CONF_SENSOR_HEIGHT: None, CONF_REF_MAX: None, **data}
+def _source_unit(hass: HomeAssistant, data: Mapping[str, Any]) -> str | None:
+    """The chosen source unit, or the sensor's own one for automatic."""
+    unit = data.get(CONF_SOURCE_UNIT, UNIT_AUTO)
+    if unit != UNIT_AUTO:
+        return unit
+    state = hass.states.get(data[CONF_SOURCE])
+    return state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
+
+
+def _with_cleared_optionals(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
+    """Store emptied optional fields as None so older values do not stick.
+
+    Also records the level unit, so the entities keep their unit even while
+    the source is unavailable at startup.
+    """
+    return {
+        CONF_SENSOR_HEIGHT: None,
+        CONF_REF_MAX: None,
+        **data,
+        CONF_LEVEL_UNIT: calc.level_unit(_source_unit(hass, data)),
+    }
 
 
 class LevelWatchConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -243,7 +261,7 @@ class LevelWatchConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._async_abort_entries_match({CONF_SOURCE: user_input[CONF_SOURCE]})
                 return self.async_create_entry(
                     title=user_input[CONF_NAME],
-                    data=_with_cleared_optionals(user_input),
+                    data=_with_cleared_optionals(self.hass, user_input),
                 )
         return self.async_show_form(
             step_id="user",
@@ -269,6 +287,14 @@ class LevelWatchOptionsFlow(OptionsFlow):
         return dict(self.config_entry.options)
 
     @property
+    def _unit(self) -> str:
+        conf = {**self.config_entry.data, **self.config_entry.options}
+        return conf.get(CONF_LEVEL_UNIT) or "cm"
+
+    def _level_number(self, positive: bool = False) -> selector.NumberSelector:
+        return _number(0 if positive else -100000, 100000, 0.1, self._unit)
+
+    @property
     def _thresholds(self) -> list[dict[str, Any]]:
         return [dict(t) for t in self.config_entry.options.get(CONF_THRESHOLDS, [])]
 
@@ -289,7 +315,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
             errors = _validate(self.hass, user_input)
             if not errors:
                 return self.async_create_entry(
-                    data={**self._options, **_with_cleared_optionals(user_input)}
+                    data={**self._options, **_with_cleared_optionals(self.hass, user_input)}
                 )
             current = {**current, **user_input}
         schema = _basic_schema(current, with_name=False)
@@ -352,7 +378,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
                 return self.async_create_entry(
                     data={**self._options, CONF_THRESHOLDS: thresholds}
                 )
-        fields: dict = {vol.Optional(item.key): LENGTH for item in PRESETS[preset]}
+        fields: dict = {vol.Optional(item.key): self._level_number() for item in PRESETS[preset]}
         fields.update(
             {
                 vol.Required("notify", default=False): selector.BooleanSelector(),
@@ -441,7 +467,7 @@ class LevelWatchOptionsFlow(OptionsFlow):
     def _threshold_picker(self, *, multiple: bool) -> selector.SelectSelector:
         def label(t: Mapping[str, Any]) -> str:
             sign = "≥" if t["direction"] == ABOVE else "≤"
-            return f"{t['name']} ({sign} {t['value']} cm)"
+            return f"{t['name']} ({sign} {t['value']} {self._unit})"
 
         return selector.SelectSelector(
             selector.SelectSelectorConfig(
@@ -464,13 +490,15 @@ class LevelWatchOptionsFlow(OptionsFlow):
                 vol.Required("name", default=d.get("name", vol.UNDEFINED)): (
                     selector.TextSelector()
                 ),
-                vol.Required("value", default=d.get("value", vol.UNDEFINED)): LENGTH,
+                vol.Required("value", default=d.get("value", vol.UNDEFINED)): (
+                    self._level_number()
+                ),
                 vol.Required("direction", default=d.get("direction", ABOVE)): _select(
                     DIRECTIONS, "direction"
                 ),
                 vol.Required(
                     "hysteresis", default=d.get("hysteresis", DEFAULT_HYSTERESIS)
-                ): POSITIVE_LENGTH,
+                ): self._level_number(positive=True),
                 vol.Optional("color", description=suggested("color")): (
                     selector.ColorRGBSelector()
                 ),

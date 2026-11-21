@@ -64,6 +64,22 @@ class TankShape:
         raise ValueError(f"no volume for shape {self.shape!r}")
 
 
+class Linear:
+    """Stand-in shape for a source in %: the "volume" is the percentage itself.
+
+    Lets the consumption and range maths run unchanged, in % per day.
+    """
+
+    max_height = None
+
+    @staticmethod
+    def volume(level: float) -> float:
+        return level
+
+
+LINEAR = Linear()
+
+
 def capacity(shape: TankShape, ref_max: float | None) -> float | None:
     top = ref_max if ref_max is not None else shape.max_height
     return None if top is None else shape.volume(top)

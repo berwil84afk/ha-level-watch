@@ -5,13 +5,15 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "level_watch"
-VERSION: Final = "0.6.1"
+VERSION: Final = "0.7.0"
 CARD_URL: Final = "/level_watch/level-watch-card.js"
 
 # Basic settings
 CONF_NAME: Final = "name"
 CONF_SOURCE: Final = "source_entity"
 CONF_SOURCE_UNIT: Final = "source_unit"
+# Unit every level value is kept in: cm, or % for a source that reports %.
+CONF_LEVEL_UNIT: Final = "level_unit"
 CONF_KIND: Final = "kind"
 CONF_MODE: Final = "measurement_mode"
 CONF_SENSOR_HEIGHT: Final = "sensor_height"
@@ -48,7 +50,8 @@ MODE_DISTANCE: Final = "distance"
 MODES: Final = [MODE_LEVEL, MODE_DISTANCE]
 
 UNIT_AUTO: Final = "auto"
-SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft"]
+UNIT_PERCENT: Final = "%"
+SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft", UNIT_PERCENT]
 
 DEFAULT_NAME: Final = "Pegel"
 DEFAULT_OFFSET: Final = 0.0

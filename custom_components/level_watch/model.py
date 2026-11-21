@@ -37,6 +37,7 @@ from .const import (
     CONF_DIAMETER,
     CONF_KIND,
     CONF_LENGTH,
+    CONF_LEVEL_UNIT,
     CONF_MAX_JUMP,
     CONF_MODE,
     CONF_NAME,
@@ -83,6 +84,8 @@ from .const import (
     STORAGE_VERSION,
     TICK_INTERVAL,
     UNIT_AUTO,
+    UNIT_CM,
+    UNIT_PERCENT,
 )
 from .thresholds import Threshold, format_message, load_thresholds, next_threshold, stage
 
@@ -113,6 +116,7 @@ class Settings:
     stale_timeout: float  # seconds
     max_jump: float  # cm
     thresholds: tuple[Threshold, ...] = ()
+    level_unit: str = UNIT_CM  # cm, or % for a percentage source
     tank: tank.TankShape | None = None  # only for a tank with a known shape
     consumption_window: float = DEFAULT_CONSUMPTION_WINDOW * 86400  # seconds
     refill_jump: float = DEFAULT_REFILL_JUMP  # cm
@@ -139,7 +143,10 @@ class Settings:
             width=dim(CONF_WIDTH),
         )
         kind = conf.get(CONF_KIND) or KIND_WATER
+        unit = conf.get(CONF_LEVEL_UNIT) or UNIT_CM
         ref_max = conf.get(CONF_REF_MAX)
+        if unit == UNIT_PERCENT and ref_max is None:
+            ref_max = 100.0  # a percentage runs to 100 unless told otherwise
         return cls(
             name=conf.get(CONF_NAME) or DEFAULT_NAME,
             source=conf[CONF_SOURCE],
@@ -158,7 +165,9 @@ class Settings:
             stale_timeout=opt(CONF_STALE_TIMEOUT, DEFAULT_STALE_TIMEOUT) * 60,
             max_jump=opt(CONF_MAX_JUMP, DEFAULT_MAX_JUMP),
             thresholds=tuple(load_thresholds(conf.get(CONF_THRESHOLDS))),
-            tank=shape if kind == KIND_TANK and shape.defined else None,
+            level_unit=unit,
+            # No volume for a source in %: the shape would have nothing to measure.
+            tank=shape if kind == KIND_TANK and shape.defined and unit == UNIT_CM else None,
             consumption_window=opt(CONF_CONSUMPTION_WINDOW, DEFAULT_CONSUMPTION_WINDOW)
             * 86400,
             refill_jump=opt(CONF_REFILL_JUMP, DEFAULT_REFILL_JUMP),
@@ -342,22 +351,32 @@ class LevelWatchModel:
         unit = self.settings.source_unit
         if unit == UNIT_AUTO:
             unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-        if not calc.is_length_unit(unit):
-            if not self._warned_unit:
-                _LOGGER.warning(
-                    "%s has unit %r; set the source unit in the Level Watch options",
-                    self.settings.source,
-                    unit,
-                )
-                self._warned_unit = True
-            return None
         s = self.settings
+        if s.level_unit == UNIT_PERCENT:
+            # The entry was set up for %, so only % (or a missing unit) fits.
+            if unit not in (UNIT_PERCENT, None, ""):
+                self._warn_unit(unit)
+                return None
+            return value + s.offset
+        if not calc.is_length_unit(unit):
+            self._warn_unit(unit)
+            return None
         return calc.raw_to_level(
             calc.to_cm(value, unit),
             distance_mode=s.distance_mode,
             sensor_height=s.sensor_height,
             offset=s.offset,
         )
+
+    def _warn_unit(self, unit: str | None) -> None:
+        """Log an unusable source unit once, not on every reading."""
+        if not self._warned_unit:
+            _LOGGER.warning(
+                "%s has unit %r; set the source unit in the Level Watch options",
+                self.settings.source,
+                unit,
+            )
+            self._warned_unit = True
 
     # -- output --------------------------------------------------------------
 
@@ -438,6 +457,8 @@ class LevelWatchModel:
 
     def _percent(self, level: float) -> float | None:
         s = self.settings
+        if s.level_unit == UNIT_PERCENT:
+            return None  # the level already is the percentage
         if s.tank is not None:
             return tank.volume_percent(s.tank, level, s.ref_min, s.ref_max)
         return calc.percent(level, s.ref_min, s.ref_max)
@@ -456,6 +477,19 @@ class LevelWatchModel:
                 else None
             ),
         }
+        if s.level_unit == UNIT_PERCENT:
+            consumption = tank.consumption_per_day(
+                tank.LINEAR,
+                self.long,
+                now,
+                s.consumption_window,
+                min(MIN_CONSUMPTION_SPAN, s.consumption_window / 2),
+            )
+            values.update(
+                consumption=consumption,
+                days_left=tank.days_left(tank.LINEAR, level, s.ref_min, consumption),
+            )
+            return values
         shape = s.tank
         if shape is None:
             return values
@@ -543,6 +577,7 @@ class LevelWatchModel:
             trend=trend,
             rate=rate,
             cleared=cleared,
+            unit=self.settings.level_unit,
         )
         self._last_sent[th.id] = now
         self.hass.async_create_task(

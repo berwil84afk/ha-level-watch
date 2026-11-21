@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.6.1";
+const CARD_VERSION = "0.7.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -375,6 +375,7 @@ class LevelWatchCard extends HTMLElement {
     if (!ed) return;
     const t = TEXT[lang(this._hass)];
     const targetEntries = Object.entries(ed.targets);
+    const u = unitOf(this._lastCtx?.a);
     const rows = ed.draft.map((th, i) => {
       const open = ed.open.has(i);
       const targets = targetEntries.length
@@ -382,7 +383,7 @@ class LevelWatchCard extends HTMLElement {
         : `<div class="hint">${esc(t.no_targets)}</div>`;
       const details = open ? `
         <div class="details">
-          <label class="fld"><span>${t.f_hysteresis}</span><span class="num"><input type="number" step="0.5" min="0" data-field="hysteresis" data-idx="${i}" value="${esc(th.hysteresis)}"><em>cm</em></span></label>
+          <label class="fld"><span>${t.f_hysteresis}</span><span class="num"><input type="number" step="0.5" min="0" data-field="hysteresis" data-idx="${i}" value="${esc(th.hysteresis)}"><em>${esc(u)}</em></span></label>
           <label class="sw"><input type="checkbox" data-field="notify" data-idx="${i}" ${th.notify ? "checked" : ""}><span class="track"></span><span>${t.f_notify}</span></label>
           ${th.notify ? `
             <div class="fld"><span>${t.f_targets}</span><div class="targets">${targets}</div></div>
@@ -401,7 +402,7 @@ class LevelWatchCard extends HTMLElement {
               <button data-act="dir" data-dir="above" data-idx="${i}" class="${th.direction === "above" ? "on" : ""}" title="${t.f_above}">≥</button>
               <button data-act="dir" data-dir="below" data-idx="${i}" class="${th.direction === "below" ? "on" : ""}" title="${t.f_below}">≤</button>
             </div>
-            <span class="num val"><input type="number" step="0.5" data-field="value" data-idx="${i}" value="${esc(th.value ?? "")}" aria-label="${t.f_value}"><em>cm</em></span>
+            <span class="num val"><input type="number" step="0.5" data-field="value" data-idx="${i}" value="${esc(th.value ?? "")}" aria-label="${t.f_value}"><em>${esc(u)}</em></span>
             <button class="ib ${th.notify ? "bell" : "bell off"}" data-act="toggle" data-idx="${i}" title="${t.more}">${icon("bell")}</button>
             <button class="ib" data-act="toggle" data-idx="${i}" title="${t.more}">${icon("chevron", open ? "up" : "")}</button>
             <button class="ib del" data-act="delete" data-idx="${i}" title="${t.delete}">${icon("trash")}</button>
@@ -494,7 +495,7 @@ class LevelWatchCard extends HTMLElement {
   _bigValue(c) {
     const { a, level, hasLevel, mode, fmt } = c;
     if (mode === "tank" && Number.isFinite(a.percent)) return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
-    return hasLevel ? `${fmt(level)}<span class="unit">cm</span>` : "–";
+    return hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–";
   }
 
   _forecast(c) {
@@ -511,7 +512,7 @@ class LevelWatchCard extends HTMLElement {
       }
       const parts = [];
       if (Number.isFinite(a.volume)) parts.push(`${fmt(a.volume, 0)} L${Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : ""}`);
-      if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} L ${t.per_day}`);
+      if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}`);
       if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt)}`);
       if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))}</div>`);
     } else {
@@ -520,7 +521,7 @@ class LevelWatchCard extends HTMLElement {
         Number.isFinite(a.max_24h) ? `${t.max} ${fmt(a.max_24h)}` : "",
         Number.isFinite(a.change_24h) ? `${t.change} ${a.change_24h > 0 ? "+" : ""}${fmt(a.change_24h)}` : "",
       ].filter(Boolean);
-      if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))} cm</div>`);
+      if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))} ${esc(unitOf(a))}</div>`);
     }
     return `${this._head(c)}
       <div class="fc ${c.dim}">
@@ -548,7 +549,7 @@ class LevelWatchCard extends HTMLElement {
       const mid = (bounds[i] + bounds[i + 1]) / 2;
       const stage = stageAt(ths, mid);
       const col = stage ? stage.color : NORMAL_ZONE;
-      const tip = `${stage ? stage.name : c.t.normal} · ${fmt(bounds[i], 0)}–${fmt(bounds[i + 1], 0)} cm`;
+      const tip = `${stage ? stage.name : c.t.normal} · ${fmt(bounds[i], 0)}–${fmt(bounds[i + 1], 0)} ${unitOf(c.a)}`;
       const here = hasLevel && !hereDone && level >= bounds[i] && level <= bounds[i + 1];
       if (here) hereDone = true;
       const x0 = x(bounds[i]) + (i ? 1 : 0);
@@ -702,10 +703,10 @@ class LevelWatchCard extends HTMLElement {
     }).join("");
     const center = mode === "tank" && Number.isFinite(a.percent)
       ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, 0)}` : "–");
-    const sub = mode === "tank" && Number.isFinite(a.volume) ? `${fmt(a.volume, 0)} L` : (hasLevel ? "cm" : "");
+    const sub = mode === "tank" && Number.isFinite(a.volume) ? `${fmt(a.volume, 0)} L` : (hasLevel ? unitOf(a) : "");
     const lines = [this._trendLine(a, fmt, t)];
     if (Number.isFinite(a.days_left)) lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
-    if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} L ${t.per_day}</div>`);
+    if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
     if (Number.isFinite(a.hours_to_full)) lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt))}</b></div>`);
     lines.push(this._nextLine(a, t, fmt));
     if (a.last_refill) {
@@ -772,7 +773,7 @@ class LevelWatchCard extends HTMLElement {
     if (Number.isFinite(a.rate)) {
       const shown = fmt(Math.abs(a.rate));
       const sign = Math.abs(a.rate) < 0.05 ? "±" : a.rate > 0 ? "+" : "−";
-      rate = ` · ${sign}${Math.abs(a.rate) < 0.05 ? "0" : shown} cm/h`;
+      rate = ` · ${sign}${Math.abs(a.rate) < 0.05 ? "0" : shown} ${unitOf(a)}/h`;
     }
     return `<div class="trend">${icon}<span>${esc(t[trend] || trend)}${rate}</span></div>`;
   }
@@ -797,7 +798,7 @@ class LevelWatchCard extends HTMLElement {
   }
 
   _waterStats(a, level, hasLevel, fmt, t) {
-    const big = hasLevel ? `${fmt(level)}<span class="unit">cm</span>` : "–";
+    const big = hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–";
     const extremes = [
       Number.isFinite(a.min_24h) ? `${t.min} ${fmt(a.min_24h)}` : "",
       Number.isFinite(a.max_24h) ? `${t.max} ${fmt(a.max_24h)}` : "",
@@ -807,26 +808,26 @@ class LevelWatchCard extends HTMLElement {
       <div class="big">${big}</div>
       ${this._trendLine(a, fmt, t)}
       ${this._nextLine(a, t, fmt)}
-      ${extremes ? `<div class="small">${esc(extremes)} cm</div>` : ""}`;
+      ${extremes ? `<div class="small">${esc(extremes)} ${esc(unitOf(a))}</div>` : ""}`;
   }
 
   _tankStats(a, level, hasLevel, fmt, t) {
     const pct = Number.isFinite(a.percent) ? a.percent : null;
     const big = pct !== null
       ? `${fmt(pct, 0)}<span class="unit">%</span>`
-      : (hasLevel ? `${fmt(level)}<span class="unit">cm</span>` : "–");
+      : (hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–");
     const lines = [];
     if (Number.isFinite(a.volume)) {
       const cap = Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : "";
       lines.push(`<div class="line"><b>${fmt(a.volume, 0)} L</b>${cap}</div>`);
     } else if (pct !== null && hasLevel) {
-      lines.push(`<div class="line">${fmt(level)} cm</div>`);
+      lines.push(`<div class="line">${fmt(level)} ${esc(unitOf(a))}</div>`);
     }
     if (Number.isFinite(a.days_left)) {
       lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
     }
     if (Number.isFinite(a.consumption)) {
-      lines.push(`<div class="small">${fmt(a.consumption)} L ${t.per_day}</div>`);
+      lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
     }
     if (Number.isFinite(a.hours_to_full)) {
       lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt))}</b></div>`);
@@ -1059,6 +1060,10 @@ const EDITOR_STYLE = `<style>
     .details { padding-left: 4px; }
   }
 </style>`;
+
+function unitOf(a) {
+  return (a && a.unit) || "cm";
+}
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));

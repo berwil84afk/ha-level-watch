@@ -2,7 +2,7 @@
 
 Custom Integration, die einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) aus einem vorhandenen Sensor überwacht und daraus Kennzahlen berechnet.
 
-> **Stand 0.6.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen und Vorlagen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks, in der du die Schwellen auch bearbeiten kannst.
+> **Stand 0.7.0:** Pegel, Tendenz, Änderungsrate, 24-h-Werte, Datenqualität, Schwellenwerte mit Meldungen und Vorlagen, Tankvolumen, Verbrauch und Reichweite sowie eine eigene Karte für Wasserpegel und Tanks, in der du die Schwellen auch bearbeiten kannst.
 
 ## Was du bekommst
 
@@ -70,11 +70,13 @@ actions:
 
 ## Datenquellen
 
-Level Watch nimmt jeden Sensor mit einer Längeneinheit (mm, cm, m, in, ft), zum Beispiel:
+Level Watch nimmt jeden Sensor mit einer Längeneinheit (mm, cm, m, in, ft) oder in Prozent, zum Beispiel:
 
 - **Ultraschall- oder Radarsensor** über ESPHome oder Tasmota. Misst er von oben nach unten, wähle *Messart: Abstand von oben* und gib die Einbauhöhe an.
 - **Drucksensor** im Brunnen oder Tank.
 - **Offizielle Pegel** über die in Home Assistant enthaltene Integration [PEGELONLINE](https://www.home-assistant.io/integrations/pegel_online/). Daten: WSV, PEGELONLINE, Lizenz DL-DE->Zero-2.0. Es sind ungeprüfte Rohdaten.
+
+- **Füllstandssensor in %**, etwa von einem Heizöl- oder Zisternenmodul. Level Watch rechnet dann durchgehend in %: Pegel, Bezüge, Schwellen, Rate (%/h), Min/Max und die Karte. Beim Tank gibt es Verbrauch in %/Tag und die Reichweite in Tagen, aber keine Liter (die Tankform wird dafür nicht gebraucht). Ohne *Bezug oben* gilt 100 %. *Abstand von oben* ist bei % nicht möglich.
 
 > Level Watch ersetzt keine amtlichen Hochwasserwarnungen.
 

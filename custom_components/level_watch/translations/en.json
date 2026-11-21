@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Set up Level Watch",
-        "description": "All lengths are in cm. Thresholds and notifications are added afterwards under Configure.",
+        "description": "Lengths in cm. A sensor in % is kept in %: references, thresholds and the card then work in %.",
         "data": {
           "name": "Name",
           "source_entity": "Level sensor",
@@ -18,13 +18,13 @@
         "data_description": {
           "name": "Shown as device name, e.g. Rhine Cologne or Cistern.",
           "source_entity": "Sensor that delivers the level or the distance to the surface.",
-          "source_unit": "Automatic uses the unit of the sensor. Choose one if the sensor has none.",
+          "source_unit": "Automatic uses the unit of the sensor. A length (mm, cm, m …) is converted to cm; % stays %.",
           "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
           "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
-          "offset": "Added to every value, e.g. to correct the gauge zero.",
-          "reference_min": "Level that counts as 0 % (empty or lowest level).",
-          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage."
+          "offset": "Added to every value (in cm, or % for a sensor in %), e.g. to correct the gauge zero.",
+          "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
+          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage; for a sensor in % it defaults to 100."
         },
         "sections": {
           "tank": {
@@ -52,7 +52,8 @@
       "unit_unknown": "The sensor has no length unit. Choose the unit manually.",
       "tank_vertical_cylinder": "A vertical cylinder needs the diameter.",
       "tank_horizontal_cylinder": "A horizontal cylinder needs diameter and length.",
-      "tank_box": "A box needs length and width."
+      "tank_box": "A box needs length and width.",
+      "percent_distance": "A sensor in % cannot measure a distance. Choose measurement Level."
     },
     "abort": {
       "already_configured": "This sensor is already monitored."
@@ -127,13 +128,13 @@
         },
         "data_description": {
           "source_entity": "Sensor that delivers the level or the distance to the surface.",
-          "source_unit": "Automatic uses the unit of the sensor. Choose one if the sensor has none.",
+          "source_unit": "Automatic uses the unit of the sensor. A length (mm, cm, m …) is converted to cm; % stays %.",
           "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
           "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
-          "offset": "Added to every value, e.g. to correct the gauge zero.",
-          "reference_min": "Level that counts as 0 % (empty or lowest level).",
-          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage."
+          "offset": "Added to every value (in cm, or % for a sensor in %), e.g. to correct the gauge zero.",
+          "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
+          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage; for a sensor in % it defaults to 100."
         },
         "sections": {
           "advanced": {
@@ -213,7 +214,8 @@
       "tank_vertical_cylinder": "A vertical cylinder needs the diameter.",
       "tank_horizontal_cylinder": "A horizontal cylinder needs diameter and length.",
       "tank_box": "A box needs length and width.",
-      "preset_empty": "Enter at least one value."
+      "preset_empty": "Enter at least one value.",
+      "percent_distance": "A sensor in % cannot measure a distance. Choose measurement Level."
     }
   },
   "selector": {
@@ -242,7 +244,8 @@
         "cm": "cm",
         "m": "m",
         "in": "in",
-        "ft": "ft"
+        "ft": "ft",
+        "%": "% (fill level)"
       }
     },
     "shape": {

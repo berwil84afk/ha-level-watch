@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -23,7 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LevelWatchConfigEntry
-from .const import KIND_TANK, QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_RATE
+from .const import KIND_TANK, QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_PERCENT, UNIT_RATE
 from .entity import LevelWatchEntity
 from .model import LevelWatchModel, Snapshot
 from .thresholds import NORMAL_COLOR
@@ -72,6 +72,7 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "tank_diameter": s.tank.diameter if s.tank else None,
         "last_refill": snap.last_refill.isoformat() if snap.last_refill else None,
         "top": _top(model),
+        "unit": s.level_unit,
         "percent": _round(snap.percent, 1),
         "trend": snap.trend,
         "rate": _round(snap.rate, 2),
@@ -271,6 +272,18 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
 
 THRESHOLD_KEYS = {"stage", "next_threshold", "time_to_next"}
 SHAPE_KEYS = {"volume", "consumption", "days_left"}
+LEVEL_KEYS = {"level", "min_24h", "max_24h", "change_24h"}
+
+
+def _for_percent(d: LevelSensorDescription) -> LevelSensorDescription:
+    """The same sensor for a source in %: no distance class, % based units."""
+    if d.key in LEVEL_KEYS:
+        return replace(d, device_class=None, native_unit_of_measurement=PERCENTAGE)
+    if d.key == "rate":
+        return replace(d, native_unit_of_measurement=f"{PERCENTAGE}/h")
+    if d.key == "consumption":
+        return replace(d, native_unit_of_measurement=f"{PERCENTAGE}/d")
+    return d
 
 
 async def async_setup_entry(
@@ -281,9 +294,13 @@ async def async_setup_entry(
     model = entry.runtime_data
     s = model.settings
 
+    percent = s.level_unit == UNIT_PERCENT
+
     def wanted(d: LevelSensorDescription) -> bool:
         if d.key == "percent":
-            return s.ref_max is not None
+            return s.ref_max is not None and not percent
+        if percent and d.key in ("consumption", "days_left"):
+            return s.kind == KIND_TANK
         if d.key in THRESHOLD_KEYS:
             return bool(s.thresholds)
         if d.key in SHAPE_KEYS:
@@ -298,7 +315,11 @@ async def async_setup_entry(
             return s.kind == KIND_TANK
         return True
 
-    async_add_entities(LevelSensor(entry, model, d) for d in SENSORS if wanted(d))
+    async_add_entities(
+        LevelSensor(entry, model, _for_percent(d) if percent else d)
+        for d in SENSORS
+        if wanted(d)
+    )
 
 
 class LevelSensor(LevelWatchEntity, SensorEntity):

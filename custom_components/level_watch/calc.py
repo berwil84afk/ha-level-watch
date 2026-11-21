@@ -35,6 +35,19 @@ def is_length_unit(unit: str | None) -> bool:
     return unit in _TO_CM
 
 
+PERCENT = "%"
+
+
+def is_supported_unit(unit: str | None) -> bool:
+    """Length units and %, the two kinds of source Level Watch understands."""
+    return unit == PERCENT or is_length_unit(unit)
+
+
+def level_unit(source_unit: str | None) -> str:
+    """Unit the levels are kept in for a source with this unit."""
+    return PERCENT if source_unit == PERCENT else "cm"
+
+
 def raw_to_level(
     reading_cm: float, *, distance_mode: bool, sensor_height: float | None, offset: float
 ) -> float:

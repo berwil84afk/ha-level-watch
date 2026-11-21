@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Level Watch einrichten",
-        "description": "Alle Längen in cm. Schwellenwerte und Meldungen legst du danach unter Konfigurieren an.",
+        "description": "Längen in cm. Ein Sensor in % bleibt in %: Bezüge, Schwellen und die Karte arbeiten dann in %.",
         "data": {
           "name": "Name",
           "source_entity": "Pegelsensor",
@@ -18,13 +18,13 @@
         "data_description": {
           "name": "Wird als Gerätename angezeigt, z. B. Rhein Köln oder Zisterne.",
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Wähle eine, wenn der Sensor keine hat.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden in cm umgerechnet, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert, z. B. um den Pegelnullpunkt zu korrigieren.",
-          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand).",
-          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst."
+          "offset": "Wird zu jedem Wert addiert (in cm, bei einem Sensor in % in %), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
+          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
         },
         "sections": {
           "tank": {
@@ -52,7 +52,8 @@
       "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand.",
       "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
       "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
-      "tank_box": "Ein Quader braucht Länge und Breite."
+      "tank_box": "Ein Quader braucht Länge und Breite.",
+      "percent_distance": "Ein Sensor in % misst keinen Abstand. Wähle Messart Pegel."
     },
     "abort": {
       "already_configured": "Dieser Sensor wird bereits überwacht."
@@ -127,13 +128,13 @@
         },
         "data_description": {
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Wähle eine, wenn der Sensor keine hat.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden in cm umgerechnet, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert, z. B. um den Pegelnullpunkt zu korrigieren.",
-          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand).",
-          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst."
+          "offset": "Wird zu jedem Wert addiert (in cm, bei einem Sensor in % in %), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
+          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
         },
         "sections": {
           "advanced": {
@@ -213,7 +214,8 @@
       "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
       "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
       "tank_box": "Ein Quader braucht Länge und Breite.",
-      "preset_empty": "Trag mindestens einen Wert ein."
+      "preset_empty": "Trag mindestens einen Wert ein.",
+      "percent_distance": "Ein Sensor in % misst keinen Abstand. Wähle Messart Pegel."
     }
   },
   "selector": {
@@ -242,7 +244,8 @@
         "cm": "cm",
         "m": "m",
         "in": "in",
-        "ft": "ft"
+        "ft": "ft",
+        "%": "% (Füllstand)"
       }
     },
     "shape": {

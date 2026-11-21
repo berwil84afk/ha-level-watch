@@ -191,16 +191,16 @@ def preset_thresholds(
 
 TEXTS = {
     "de": {
-        "alert": "{name}: {threshold} erreicht. Pegel {level} cm, {trend} ({rate} cm/h).",
-        "clear": "{name}: {threshold} aufgehoben. Pegel {level} cm, {trend}.",
+        "alert": "{name}: {threshold} erreicht. Pegel {level} {unit}, {trend} ({rate} {unit}/h).",
+        "clear": "{name}: {threshold} aufgehoben. Pegel {level} {unit}, {trend}.",
         "rising": "steigend",
         "falling": "fallend",
         "stable": "stabil",
         "unknown": "Tendenz unbekannt",
     },
     "en": {
-        "alert": "{name}: {threshold} reached. Level {level} cm, {trend} ({rate} cm/h).",
-        "clear": "{name}: {threshold} cleared. Level {level} cm, {trend}.",
+        "alert": "{name}: {threshold} reached. Level {level} {unit}, {trend} ({rate} {unit}/h).",
+        "clear": "{name}: {threshold} cleared. Level {level} {unit}, {trend}.",
         "rising": "rising",
         "falling": "falling",
         "stable": "stable",
@@ -228,6 +228,7 @@ def format_message(
     trend: str | None,
     rate: float | None,
     cleared: bool = False,
+    unit: str = "cm",
 ) -> str:
     """Fill the user's template (or the default one) with current values.
 
@@ -249,6 +250,7 @@ def format_message(
         level=num(level),
         trend=t.get(trend or "unknown", t["unknown"]),
         rate="?" if rate is None else num(rate, signed=True),
+        unit=unit,
     )
     try:
         return template.format_map(values)
