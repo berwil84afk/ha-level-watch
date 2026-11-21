@@ -2,7 +2,7 @@
 
 # Level Watch für Home Assistant
 
-[English](README.md) · **Deutsch**
+[English](README.md) · **Deutsch** · [Änderungsprotokoll](CHANGELOG.de.md)
 
 Level Watch überwacht einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen **Tank** (Zisterne, Heizöl) mit einem Sensor, den du schon hast. Die Integration berechnet die Tendenz, warnt dich bei Schwellen, die du festlegst, sagt voraus, wann die nächste erreicht wird, und bringt eine eigene Dashboard-Karte mit.
 

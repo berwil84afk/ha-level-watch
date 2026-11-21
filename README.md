@@ -2,7 +2,7 @@
 
 # Level Watch for Home Assistant
 
-**English** · [Deutsch](README.de.md)
+**English** · [Deutsch](README.de.md) · [Changelog](CHANGELOG.md)
 
 Level Watch monitors a **water level** (river, pond, well) or a **tank** (cistern, heating oil) using a sensor you already have. It works out the trend, warns you at thresholds you set, forecasts when the next one will be reached and comes with its own dashboard card.
 
