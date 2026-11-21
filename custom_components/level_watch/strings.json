@@ -1,0 +1,160 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Level Watch",
+        "description": "All lengths are in cm. Thresholds and notifications follow in a later version.",
+        "data": {
+          "name": "Name",
+          "source_entity": "Level sensor",
+          "source_unit": "Unit of the sensor",
+          "kind": "Type",
+          "measurement_mode": "Measurement",
+          "sensor_height": "Sensor mounting height",
+          "offset": "Offset",
+          "reference_min": "Reference bottom",
+          "reference_max": "Reference top"
+        },
+        "data_description": {
+          "name": "Shown as device name, e.g. Rhine Cologne or Cistern.",
+          "source_entity": "Sensor that delivers the level or the distance to the surface.",
+          "source_unit": "Automatic uses the unit of the sensor. Choose one if the sensor has none.",
+          "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
+          "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
+          "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
+          "offset": "Added to every value, e.g. to correct the gauge zero.",
+          "reference_min": "Level that counts as 0 % (empty or lowest level).",
+          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage."
+        }
+      }
+    },
+    "error": {
+      "height_required": "Distance measurement needs the mounting height.",
+      "max_below_min": "The top reference must be above the bottom reference.",
+      "unit_unknown": "The sensor has no length unit. Choose the unit manually."
+    },
+    "abort": {
+      "already_configured": "This sensor is already monitored."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Level Watch settings",
+        "data": {
+          "source_entity": "Level sensor",
+          "source_unit": "Unit of the sensor",
+          "kind": "Type",
+          "measurement_mode": "Measurement",
+          "sensor_height": "Sensor mounting height",
+          "offset": "Offset",
+          "reference_min": "Reference bottom",
+          "reference_max": "Reference top"
+        },
+        "data_description": {
+          "source_entity": "Sensor that delivers the level or the distance to the surface.",
+          "source_unit": "Automatic uses the unit of the sensor. Choose one if the sensor has none.",
+          "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
+          "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
+          "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
+          "offset": "Added to every value, e.g. to correct the gauge zero.",
+          "reference_min": "Level that counts as 0 % (empty or lowest level).",
+          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Trend and data quality",
+            "description": "Fine tuning; the defaults suit most sensors.",
+            "data": {
+              "trend_window": "Trend window",
+              "trend_deadband": "Stable range",
+              "smoothing": "Smoothing",
+              "stale_timeout": "Stale after",
+              "max_jump": "Max. jump"
+            },
+            "data_description": {
+              "trend_window": "Period over which the rate of change is computed.",
+              "trend_deadband": "Rates within ± this value count as stable.",
+              "smoothing": "Median over this period removes single outliers. 0 = off.",
+              "stale_timeout": "Data counts as stale if the sensor reports nothing for this long.",
+              "max_jump": "Larger jumps are ignored until 3 readings confirm them. 0 = off."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "height_required": "Distance measurement needs the mounting height.",
+      "max_below_min": "The top reference must be above the bottom reference.",
+      "unit_unknown": "The sensor has no length unit. Choose the unit manually."
+    }
+  },
+  "selector": {
+    "kind": {
+      "options": {
+        "water": "Water level",
+        "tank": "Tank"
+      }
+    },
+    "measurement_mode": {
+      "options": {
+        "level": "Level (height of surface)",
+        "distance": "Distance from above"
+      }
+    },
+    "source_unit": {
+      "options": {
+        "auto": "Automatic",
+        "mm": "mm",
+        "cm": "cm",
+        "m": "m",
+        "in": "in",
+        "ft": "ft"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": {
+        "name": "Level"
+      },
+      "percent": {
+        "name": "Fill level"
+      },
+      "trend": {
+        "name": "Trend",
+        "state": {
+          "rising": "Rising",
+          "falling": "Falling",
+          "stable": "Stable"
+        }
+      },
+      "rate": {
+        "name": "Rate of change"
+      },
+      "min_24h": {
+        "name": "Minimum 24 h"
+      },
+      "max_24h": {
+        "name": "Maximum 24 h"
+      },
+      "change_24h": {
+        "name": "Change 24 h"
+      },
+      "data_quality": {
+        "name": "Data quality",
+        "state": {
+          "ok": "OK",
+          "stale": "Stale",
+          "unavailable": "Sensor unavailable",
+          "no_data": "No data"
+        },
+        "state_attributes": {
+          "last_reading": {
+            "name": "Last reading"
+          }
+        }
+      }
+    }
+  }
+}

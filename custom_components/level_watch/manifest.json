@@ -1,0 +1,12 @@
+{
+  "domain": "level_watch",
+  "name": "Level Watch",
+  "codeowners": ["@berwil84afk"],
+  "config_flow": true,
+  "documentation": "https://github.com/berwil84afk/ha-level-watch",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/berwil84afk/ha-level-watch/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

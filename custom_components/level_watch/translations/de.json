@@ -1,0 +1,160 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Level Watch einrichten",
+        "description": "Alle Längen in cm. Schwellenwerte und Meldungen kommen in einer späteren Version.",
+        "data": {
+          "name": "Name",
+          "source_entity": "Pegelsensor",
+          "source_unit": "Einheit des Sensors",
+          "kind": "Art",
+          "measurement_mode": "Messart",
+          "sensor_height": "Einbauhöhe des Sensors",
+          "offset": "Korrektur",
+          "reference_min": "Bezug unten",
+          "reference_max": "Bezug oben"
+        },
+        "data_description": {
+          "name": "Wird als Gerätename angezeigt, z. B. Rhein Köln oder Zisterne.",
+          "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Wähle eine, wenn der Sensor keine hat.",
+          "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
+          "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
+          "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
+          "offset": "Wird zu jedem Wert addiert, z. B. um den Pegelnullpunkt zu korrigieren.",
+          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand).",
+          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst."
+        }
+      }
+    },
+    "error": {
+      "height_required": "Für die Abstandsmessung wird die Einbauhöhe gebraucht.",
+      "max_below_min": "Der obere Bezug muss über dem unteren liegen.",
+      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand."
+    },
+    "abort": {
+      "already_configured": "Dieser Sensor wird bereits überwacht."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Level-Watch-Einstellungen",
+        "data": {
+          "source_entity": "Pegelsensor",
+          "source_unit": "Einheit des Sensors",
+          "kind": "Art",
+          "measurement_mode": "Messart",
+          "sensor_height": "Einbauhöhe des Sensors",
+          "offset": "Korrektur",
+          "reference_min": "Bezug unten",
+          "reference_max": "Bezug oben"
+        },
+        "data_description": {
+          "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Wähle eine, wenn der Sensor keine hat.",
+          "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
+          "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
+          "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
+          "offset": "Wird zu jedem Wert addiert, z. B. um den Pegelnullpunkt zu korrigieren.",
+          "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand).",
+          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst."
+        },
+        "sections": {
+          "advanced": {
+            "name": "Tendenz und Datenqualität",
+            "description": "Feineinstellungen; die Vorgaben passen für die meisten Sensoren.",
+            "data": {
+              "trend_window": "Zeitfenster Tendenz",
+              "trend_deadband": "Stabil-Bereich",
+              "smoothing": "Glättung",
+              "stale_timeout": "Veraltet nach",
+              "max_jump": "Max. Sprung"
+            },
+            "data_description": {
+              "trend_window": "Zeitraum, über den die Änderungsrate berechnet wird.",
+              "trend_deadband": "Raten innerhalb ± dieses Werts gelten als stabil.",
+              "smoothing": "Median über diesen Zeitraum entfernt einzelne Ausreißer. 0 = aus.",
+              "stale_timeout": "Daten gelten als veraltet, wenn der Sensor so lange nichts meldet.",
+              "max_jump": "Größere Sprünge werden ignoriert, bis 3 Messungen sie bestätigen. 0 = aus."
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "height_required": "Für die Abstandsmessung wird die Einbauhöhe gebraucht.",
+      "max_below_min": "Der obere Bezug muss über dem unteren liegen.",
+      "unit_unknown": "Der Sensor hat keine Längeneinheit. Wähle die Einheit von Hand."
+    }
+  },
+  "selector": {
+    "kind": {
+      "options": {
+        "water": "Wasserpegel",
+        "tank": "Tank"
+      }
+    },
+    "measurement_mode": {
+      "options": {
+        "level": "Pegel (Höhe der Oberfläche)",
+        "distance": "Abstand von oben"
+      }
+    },
+    "source_unit": {
+      "options": {
+        "auto": "Automatisch",
+        "mm": "mm",
+        "cm": "cm",
+        "m": "m",
+        "in": "in",
+        "ft": "ft"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": {
+        "name": "Pegel"
+      },
+      "percent": {
+        "name": "Füllstand"
+      },
+      "trend": {
+        "name": "Tendenz",
+        "state": {
+          "rising": "Steigend",
+          "falling": "Fallend",
+          "stable": "Stabil"
+        }
+      },
+      "rate": {
+        "name": "Änderungsrate"
+      },
+      "min_24h": {
+        "name": "Minimum 24 h"
+      },
+      "max_24h": {
+        "name": "Maximum 24 h"
+      },
+      "change_24h": {
+        "name": "Änderung 24 h"
+      },
+      "data_quality": {
+        "name": "Datenqualität",
+        "state": {
+          "ok": "OK",
+          "stale": "Veraltet",
+          "unavailable": "Sensor nicht verfügbar",
+          "no_data": "Keine Daten"
+        },
+        "state_attributes": {
+          "last_reading": {
+            "name": "Letzte Messung"
+          }
+        }
+      }
+    }
+  }
+}
