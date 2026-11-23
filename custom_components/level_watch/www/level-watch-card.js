@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.8.0";
+const CARD_VERSION = "0.8.1";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -489,7 +489,7 @@ class LevelWatchCard extends HTMLElement {
         <div class="stats">${stats}</div>
       </div>
       ${c.qualityNote}
-      ${this._sparkline(a, color)}`;
+      ${this._historyHours() ? this._forecastChart(c) : ""}`;
   }
 
   // -- style: forecast (zone bar + history with projection) ---------------------
@@ -1020,8 +1020,9 @@ class LevelWatchCard extends HTMLElement {
     const lines = (a.thresholds || []).map((th) => {
       const ty = y(th.value);
       if (ty < top - 1 || ty > bottom + 1) return "";
-      return hoverLine(this._thrTip(th, a), 8, ty, 158, ty,
-        `<line x1="8" x2="152" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
+      return hoverLine(this._thrTip(th, a), 6, ty, 158, ty,
+        `<line x1="54" x2="152" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr gthr ${th.active ? "on" : ""}"/>`
+        + `<line x1="24" x2="32" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="smark"/>`
         + `<polygon points="152,${ty} 158,${ty - 4} 158,${ty + 4}" fill="${esc(th.color)}"/>`);
     }).join("");
     return `
@@ -1040,7 +1041,7 @@ class LevelWatchCard extends HTMLElement {
         <rect x="6" y="${top}" width="26" height="${bottom - top}" rx="2" class="staff"/>
         ${ticks}
         ${lines}
-        ${hoverLine(this._levelTip(a, level), 4, ly, 152, ly, `<line x1="4" x2="152" y1="${ly}" y2="${ly}" class="surface"/>`)}
+        ${hoverLine(this._levelTip(a, level), 2, ly, 54, ly, `<line x1="6" x2="32" y1="${ly}" y2="${ly}" class="lread"/>`)}
       </svg>`;
   }
 
@@ -1106,51 +1107,6 @@ class LevelWatchCard extends HTMLElement {
       </svg>`;
   }
 
-  // -- history ------------------------------------------------------------------
-
-  _sparkline(a, color) {
-    if (!this._historyHours()) return "";
-    const pts = this._history || [];
-    if (pts.length < 2) return `<div class="spark empty"></div>`;
-    const w = 300;
-    const h = 56;
-    const t0 = pts[0].t;
-    const t1 = Date.now();
-    const values = pts.map((p) => p.v);
-    const ths = (a.thresholds || []).map((x) => x.value);
-    let lo = Math.min(...values);
-    let hi = Math.max(...values);
-    // At least 10 cm tall, so sensor noise does not look like waves.
-    if (hi - lo < 10) {
-      const mid = (hi + lo) / 2;
-      lo = mid - 5;
-      hi = mid + 5;
-    }
-    // Show nearby thresholds, but do not flatten the curve for far away ones.
-    const pad = hi - lo;
-    for (const v of ths) if (v >= lo - pad && v <= hi + pad) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-    lo -= pad * 0.1;
-    hi += pad * 0.1;
-    const x = (t) => ((t - t0) / Math.max(t1 - t0, 1)) * w;
-    const y = (v) => h - 4 - ((v - lo) / (hi - lo)) * (h - 8);
-    let d = "";
-    pts.forEach((p, i) => {
-      // Step line: a value holds until the next one.
-      d += i ? ` H${x(p.t).toFixed(1)} V${y(p.v).toFixed(1)}` : `M${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`;
-    });
-    d += ` H${w}`;
-    const area = `${d} V${h} H0 Z`;
-    const lines = (a.thresholds || []).filter((th) => th.value >= lo && th.value <= hi)
-      .map((th) => hoverLine(this._thrTip(th, a), 0, y(th.value), w, y(th.value),
-        `<line x1="0" x2="${w}" y1="${y(th.value)}" y2="${y(th.value)}" stroke="${esc(th.color)}" class="thr"/>`))
-      .join("");
-    return `
-      <svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-        <path d="${area}" fill="${esc(color)}" opacity="0.15"/>
-        ${lines}
-        <path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      </svg>`;
-  }
 }
 
 const NORMAL_ZONE = "#26a69a";
@@ -1352,6 +1308,10 @@ const STYLE = `<style>
   .thr { stroke-width: 1.5; stroke-dasharray: 4 3; opacity: 0.75; }
   .thr.on { stroke-dasharray: none; stroke-width: 2; opacity: 1; }
   .surface { stroke: var(--lw-color); stroke-width: 1.5; opacity: 0.9; }
+  .gthr { opacity: 0.4; stroke-width: 1; }
+  .gthr.on { opacity: 0.85; stroke-width: 1.5; }
+  .smark { stroke-width: 3.5; stroke-linecap: round; }
+  .lread { stroke: var(--lw-color); stroke-width: 4; stroke-linecap: round; }
   .shell * { fill: color-mix(in srgb, var(--primary-text-color) 5%, transparent); }
   .rim * { fill: none; stroke: var(--secondary-text-color); stroke-width: 2; }
   .wave { transition: d 0.8s ease; }
@@ -1406,8 +1366,6 @@ const STYLE = `<style>
   .cstage { font-size: 0.85em; color: var(--secondary-text-color); }
   .chint { display: flex; align-items: center; gap: 4px; font-size: 0.85em; color: var(--secondary-text-color); }
   .chint .ticon { width: 16px; height: 16px; }
-  .spark { width: 100%; height: 56px; display: block; }
-  .spark.empty { height: 56px; }
 </style>`;
 
 customElements.define("level-watch-card", LevelWatchCard);

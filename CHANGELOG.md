@@ -6,6 +6,12 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.8.1] - 2026-11-23
+
+### Changed
+- Card (classic style): the history at the bottom is now the same chart as in the forecast style, scaled to the readings and with values on hover or tap.
+- Card (classic style): the gauge is tidier. Thresholds show as coloured marks on the staff and as faint lines in the basin, and the current level is a bar on the staff instead of a line across the water.
+
 ## [0.8.0] - 2026-11-23
 
 ### Added
@@ -117,6 +123,7 @@ Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The fir
 ### Added
 - First version: level, trend, rate of change, minimum, maximum and change over 24 hours, and data quality from any length sensor.
 
+[0.8.1]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.1
 [0.8.0]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.0
 [0.7.8]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.8
 [0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7

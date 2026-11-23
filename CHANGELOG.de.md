@@ -6,6 +6,12 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.8.1] - 2026-11-23
+
+### Geändert
+- Karte (Stil Klassisch): Der Verlauf unten ist jetzt dasselbe Diagramm wie im Prognose-Stil, nach den Messwerten skaliert und mit Werten bei Mouseover oder Antippen.
+- Karte (Stil Klassisch): Die Pegellatte ist aufgeräumter. Schwellen erscheinen als farbige Marken an der Latte und als dezente Linien im Becken, der aktuelle Pegel ist ein Strich auf der Latte statt einer Linie quer durchs Wasser.
+
 ## [0.8.0] - 2026-11-23
 
 ### Neu
@@ -117,6 +123,7 @@ Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Di
 ### Neu
 - Erste Version: Pegel, Tendenz, Änderungsrate, Minimum, Maximum und Änderung über 24 Stunden sowie Datenqualität aus jedem Längensensor.
 
+[0.8.1]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.1
 [0.8.0]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.0
 [0.7.8]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.8
 [0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7
