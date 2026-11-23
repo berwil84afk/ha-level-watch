@@ -24,7 +24,7 @@ OUT = Path(__file__).resolve().parent.parent / "docs" / "screenshots"
 SCALE = 2
 SHOTS = {
     # name: (query, window width, window height)
-    "card-styles": ("shot=styles&theme=dark", 1000, 620),
+    "card-styles": ("shot=styles&theme=dark", 1000, 720),
     "tank-shapes": ("shot=tanks&theme=dark", 1140, 360),
     "threshold-editor": ("shot=editor&theme=light", 640, 860),
 }

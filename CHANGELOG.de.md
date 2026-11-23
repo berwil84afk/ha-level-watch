@@ -6,6 +6,17 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.8.0] - 2026-11-23
+
+### Neu
+- Karte (Stil Prognose): Fährst du mit der Maus über das Diagramm oder tippst am Handy darauf, siehst du Zeitpunkt, Wert und Stufe zu diesem Zeitpunkt. Rechts von „jetzt“ zeigt der Tooltip die Prognose.
+- Karte (Stil Prognose): Schwellen außerhalb des Diagramms erscheinen als Hinweis am Rand, zum Beispiel „↑ Zweite Wiese überflutet · 260 cm“.
+
+### Geändert
+- Karte (Stil Prognose): Das Diagramm richtet sich nach den Messwerten, die Kurve nutzt die volle Höhe. Als Linie erscheinen nur Schwellen in der Nähe der Messwerte und die, die die Prognose erreicht.
+- Karte (Stil Prognose): Die Namen der Schwellen überlappen nicht mehr. Liegen zwei Linien zu dicht, bekommt nur eine eine Beschriftung; im Tooltip stehen weiterhin alle.
+- Karte (Stil Prognose): Das Diagramm behält sein Seitenverhältnis, statt gestreckt zu werden. Die Beschriftungen sind dadurch nicht mehr verzerrt.
+
 ## [0.7.8] - 2026-11-21
 
 ### Neu
@@ -106,6 +117,7 @@ Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Di
 ### Neu
 - Erste Version: Pegel, Tendenz, Änderungsrate, Minimum, Maximum und Änderung über 24 Stunden sowie Datenqualität aus jedem Längensensor.
 
+[0.8.0]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.0
 [0.7.8]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.8
 [0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7
 [0.7.6]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.6

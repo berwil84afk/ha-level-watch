@@ -41,6 +41,18 @@
       attributes: { source_entity: "sensor.src", friendly_name: a.title + " Pegel", ...a } }];
   }
   const states = Object.fromEntries([
+    lvl("sensor.ebrach_pegel", 143, { title: "Rauhe Ebrach", kind: "water", reference_min: 100, reference_max: 400,
+      thresholds: [
+        { name: "Niedrigwasser", value: 100, direction: "below", color: "#e64a19", active: false },
+        { name: "Normal", value: 130, direction: "below", color: "#43a047", active: false },
+        { name: "Erhöht", value: 130, direction: "above", color: "#1e5bff", active: true },
+        { name: "Bach voll", value: 170, direction: "above", color: "#c0b31a", active: false },
+        { name: "Erste Wiese überflutet", value: 200, direction: "above", color: "#e6b800", active: false },
+        { name: "Zweite Wiese überflutet", value: 260, direction: "above", color: "#e07b00", active: false },
+        { name: "Hochwasser", value: 350, direction: "above", color: "#9c27b0", active: false },
+      ],
+      color: "#1e5bff", stage: "Erhöht", trend: "stable", rate: 0, quality: "ok",
+      min_24h: 143, max_24h: 155, change_24h: -12, decay: true }),
     lvl("sensor.rhein_pegel", 412, { title: "Rhein Köln", kind: "water", reference_min: 0, reference_max: 800,
       thresholds: flood.map((t) => ({ ...t, active: false })), color: "#26a69a", stage: null,
       trend: "rising", rate: 4.2, quality: "ok", min_24h: 380.5, max_24h: 412, change_24h: 31.5,
@@ -84,6 +96,13 @@
     if (!Number.isFinite(end)) return [];
     const now = Date.now() / 1000;
     const rows = [];
+    if (s.attributes.decay) {
+      // A flood wave running off over three days.
+      for (let i = 288; i >= 0; i--) {
+        rows.push({ s: (end + 62 * Math.exp(-(288 - i) / 56)).toFixed(1), lu: now - i * 900 });
+      }
+      return rows;
+    }
     for (let i = 96; i >= 0; i--) {
       const drift = (s.attributes.change_24h ?? (s.attributes.rate || 0) * 24) * (i / 96);
       rows.push({ s: (end - drift + Math.sin(i / 5) * 1.5).toFixed(1), lu: now - i * 900 });

@@ -6,6 +6,17 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.8.0] - 2026-11-23
+
+### Added
+- Card (forecast style): hover over the chart, or tap it on a phone, to see the time, the value and the stage at that moment. To the right of "now" the tooltip shows the forecast.
+- Card (forecast style): thresholds outside the chart appear as a hint at the edge, for example "↑ Second meadow flooded · 260 cm".
+
+### Changed
+- Card (forecast style): the chart is scaled to the readings, so the curve uses the full height. Only thresholds close to the readings, or the one the forecast reaches, are drawn as lines.
+- Card (forecast style): threshold names no longer overlap. When two lines are too close, only one is labelled; the tooltip still names every line.
+- Card (forecast style): the chart keeps its proportions instead of being stretched, so the labels are no longer distorted.
+
 ## [0.7.8] - 2026-11-21
 
 ### Added
@@ -106,6 +117,7 @@ Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The fir
 ### Added
 - First version: level, trend, rate of change, minimum, maximum and change over 24 hours, and data quality from any length sensor.
 
+[0.8.0]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.8.0
 [0.7.8]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.8
 [0.7.7]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.7
 [0.7.6]: https://github.com/berwil84afk/ha-level-watch/releases/tag/v0.7.6

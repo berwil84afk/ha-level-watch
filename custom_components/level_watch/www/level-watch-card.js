@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.7.7";
+const CARD_VERSION = "0.8.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 
@@ -22,7 +22,7 @@ const TEXT = {
     style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
     style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
     now: "jetzt", expected: "voraussichtlich", today: "heute", tomorrow: "morgen",
-    until: "bis", refilled: "Getankt", in_short: "in",
+    until: "bis", refilled: "Getankt", in_short: "in", forecast_tip: "Prognose",
     edit_thresholds: "Schwellen bearbeiten", add_threshold: "Schwelle hinzufügen",
     save: "Speichern", cancel: "Abbrechen", saving: "Speichert …", delete: "Löschen",
     f_name: "Name", f_value: "Wert", f_above: "steigt auf/über", f_below: "fällt auf/unter",
@@ -48,7 +48,7 @@ const TEXT = {
     style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
     style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
     now: "now", expected: "expected", today: "today", tomorrow: "tomorrow",
-    until: "until", refilled: "Refilled", in_short: "in",
+    until: "until", refilled: "Refilled", in_short: "in", forecast_tip: "Forecast",
     edit_thresholds: "Edit thresholds", add_threshold: "Add threshold",
     save: "Save", cancel: "Cancel", saving: "Saving …", delete: "Delete",
     f_name: "Name", f_value: "Value", f_above: "rises to/above", f_below: "falls to/below",
@@ -271,6 +271,7 @@ class LevelWatchCard extends HTMLElement {
     this._lastCtx = c;
     this._cardEl.innerHTML = `
       <ha-card class="${style}" style="--lw-color:${esc(color)}">${content}</ha-card>`;
+    this._bindChart();
     this._cardEl.querySelector("ha-card").addEventListener("click", (event) => {
       if (event.target.closest(".edit")) {
         event.stopPropagation();
@@ -606,73 +607,183 @@ class LevelWatchCard extends HTMLElement {
 
   _forecastChart(c) {
     const { a, level, hasLevel, color, t } = c;
+    const unit = unitOf(a);
     const hist = this._historyHours();
     const fh = Number(this._config.forecast_hours) || 12;
-    const pts = hist ? this._history || [] : [];
     const now = Date.now();
     const t0 = now - (hist || 6) * 3600e3;
     const t1 = now + fh * 3600e3;
+    const pts = (hist ? this._history || [] : []).filter((p) => p.t >= t0 - 3600e3);
     let proj = null;
     if (hasLevel && Number.isFinite(a.rate) && (a.trend === "rising" || a.trend === "falling")) {
       const reach = Number.isFinite(a.hours_to_next) && a.hours_to_next <= fh;
-      const h = reach ? a.hours_to_next : fh;
-      proj = { h, v: level + a.rate * h, reach };
+      const hrs = reach ? a.hours_to_next : fh;
+      proj = { h: hrs, v: level + a.rate * hrs, reach };
     }
-    const values = pts.map((p) => p.v);
+    const values = pts.filter((p) => p.t >= t0).map((p) => p.v);
     if (hasLevel) values.push(level);
     if (proj) values.push(proj.v);
     if (!values.length) return "";
+
+    // Scale to the readings, so the curve uses the full height. Thresholds
+    // join only when they lie close by, or when the forecast reaches them.
     let lo = Math.min(...values);
     let hi = Math.max(...values);
-    if (hi - lo < 10) { const m = (hi + lo) / 2; lo = m - 5; hi = m + 5; }
-    const span = hi - lo;
+    const minSpan = unit === "%" ? 4 : 10;
+    if (hi - lo < minSpan) { const m = (hi + lo) / 2; lo = m - minSpan / 2; hi = m + minSpan / 2; }
+    const pad = (hi - lo) * 0.12;
+    lo -= pad;
+    hi += pad;
     const ths = a.thresholds || [];
     const next = ths.find((th) => th.name === a.next_threshold);
+    const band = (hi - lo) * 0.15;
     for (const th of ths) {
-      if (th === next || (th.value >= lo - span * 0.5 && th.value <= hi + span * 0.5)) {
-        lo = Math.min(lo, th.value);
-        hi = Math.max(hi, th.value);
+      if ((proj?.reach && th === next) || (th.value >= lo - band && th.value <= hi + band)) {
+        lo = Math.min(lo, th.value - pad / 2);
+        hi = Math.max(hi, th.value + pad / 2);
       }
     }
-    lo -= (hi - lo) * 0.08;
-    hi += (hi - lo) * 0.08;
-    const w = 300;
-    const h = 110;
-    const x = (ms) => ((ms - t0) / (t1 - t0)) * w;
-    const y = (v) => h - 14 - ((v - lo) / (hi - lo)) * (h - 22);
+
+    const W = 520;
+    const H = 200;
+    const top = 16;
+    const bottom = 178;
+    const x = (ms) => ((ms - t0) / (t1 - t0)) * W;
+    const y = (v) => bottom - ((v - lo) / (hi - lo)) * (bottom - top);
     const nx = x(now);
+    const fmt = new Intl.NumberFormat(this._hass?.locale?.language || "en", { maximumFractionDigits: 1 });
+
     let d = "";
-    pts.filter((p) => p.t >= t0).forEach((p, i) => {
-      d += i ? ` H${x(p.t).toFixed(1)} V${y(p.v).toFixed(1)}` : `M${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`;
+    pts.forEach((p, i) => {
+      const px = Math.max(0, x(p.t)).toFixed(1);
+      d += i ? ` H${px} V${y(p.v).toFixed(1)}` : `M${px} ${y(p.v).toFixed(1)}`;
     });
     if (hasLevel) d += d ? ` H${nx.toFixed(1)} V${y(level).toFixed(1)}` : `M${nx.toFixed(1)} ${y(level).toFixed(1)}`;
-    const area = d ? `${d} V${h - 14} H${x(Math.max(t0, pts[0]?.t ?? now)).toFixed(1)} Z` : "";
-    const lines = ths.filter((th) => th.value >= lo && th.value <= hi).map((th) => {
-      const ty = y(th.value);
-      return hoverLine(this._thrTip(th, a), 0, ty, w, ty,
-        `<line x1="0" x2="${w}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>`
-        + `<text x="3" y="${ty - 3}" class="zl" fill="${esc(th.color)}">${esc(th.name)}</text>`);
-    }).join("");
+    const startX = pts.length ? Math.max(0, x(pts[0].t)) : nx;
+    const area = d ? `${d} V${bottom} H${startX.toFixed(1)} Z` : "";
+
+    // Threshold lines inside the range; a name only where it does not
+    // collide with the one above (the tooltip still names every line).
+    let lastLabel = -Infinity;
+    const lines = ths
+      .filter((th) => th.value >= lo && th.value <= hi)
+      .sort((p, q) => q.value - p.value)
+      .map((th) => {
+        const ty = y(th.value);
+        let label = "";
+        if (ty - lastLabel >= 18) {
+          label = `<text x="4" y="${(ty - 4).toFixed(1)}" class="cl" fill="${esc(th.color)}">${esc(th.name)}</text>`;
+          lastLabel = ty;
+        }
+        return hoverLine(this._thrTip(th, a), 0, ty, W, ty,
+          `<line x1="0" x2="${W}" y1="${ty}" y2="${ty}" stroke="${esc(th.color)}" class="thr ${th.active ? "on" : ""}"/>${label}`);
+      }).join("");
+
+    // The nearest threshold above and below the range, as a hint at the edge.
+    const above = ths.filter((th) => th.value > hi).sort((p, q) => p.value - q.value)[0];
+    const below = ths.filter((th) => th.value < lo).sort((p, q) => q.value - p.value)[0];
+    const hint = (th, yy, arrow) => th
+      ? `<g class="hov"><title>${esc(this._thrTip(th, a))}</title><text x="${W - 2}" y="${yy}" text-anchor="end" class="cl" fill="${esc(th.color)}">${arrow} ${esc(th.name)} · ${fmt.format(th.value)} ${esc(unit)}</text></g>`
+      : "";
+
     let projSvg = "";
     if (proj) {
       const px = x(now + proj.h * 3600e3);
       const py = y(proj.v);
       projSvg = `<line x1="${nx}" y1="${y(level)}" x2="${px}" y2="${py}" stroke="${esc(color)}" class="projline"/>`;
       if (proj.reach && next) {
-        projSvg += `<circle cx="${px}" cy="${py}" r="4" fill="var(--card-background-color, #fff)" stroke="${esc(next.color)}" stroke-width="2"/>`;
+        projSvg += `<circle cx="${px}" cy="${py}" r="4.5" fill="var(--card-background-color, #fff)" stroke="${esc(next.color)}" stroke-width="2"/>`;
       }
     }
-    return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-      ${area ? `<path d="${area}" fill="${esc(color)}" opacity="0.12"/>` : ""}
-      ${lines}
-      <line x1="${nx}" x2="${nx}" y1="4" y2="${h - 14}" class="nowline"/>
-      ${d ? `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="2" vector-effect="non-scaling-stroke"/>` : ""}
-      ${projSvg}
-      ${hasLevel ? `<circle cx="${nx}" cy="${y(level)}" r="3.5" fill="${esc(color)}"/>` : ""}
-      <text x="0" y="${h - 2}" class="zl">−${hist || 6} h</text>
-      <text x="${nx}" y="${h - 2}" class="zl" text-anchor="middle">${esc(t.now)}</text>
-      <text x="${w}" y="${h - 2}" class="zl" text-anchor="end">+${fh} h</text>
-    </svg>`;
+
+    // Everything the pointer handler needs to read a value at a position.
+    this._chart = { t0, t1, now, W, H, top, bottom, lo, hi, pts, level: hasLevel ? level : null,
+      rate: proj ? a.rate : 0, projH: proj ? proj.h : 0, unit, ths, color };
+
+    return `<div class="chartwrap">
+      <svg class="chart" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+        ${area ? `<path d="${area}" fill="${esc(color)}" opacity="0.12"/>` : ""}
+        ${lines}
+        <line x1="${nx}" x2="${nx}" y1="${top - 8}" y2="${bottom}" class="nowline"/>
+        ${d ? `<path d="${d}" fill="none" stroke="${esc(color)}" stroke-width="2.2"/>` : ""}
+        ${projSvg}
+        ${hasLevel ? `<circle cx="${nx}" cy="${y(level)}" r="4" fill="${esc(color)}"/>` : ""}
+        ${hint(above, 11, "↑")}
+        ${hint(below, bottom - 4, "↓")}
+        <text x="0" y="${H - 4}" class="cl">−${hist || 6} h</text>
+        <text x="${nx}" y="${H - 4}" class="cl" text-anchor="middle">${esc(t.now)}</text>
+        <text x="${W}" y="${H - 4}" class="cl" text-anchor="end">+${fh} h</text>
+        <g class="cross" style="display:none">
+          <line class="crossline" y1="${top - 6}" y2="${bottom}"/>
+          <circle class="crossdot" r="5"/>
+        </g>
+        <rect class="chit" x="0" y="0" width="${W}" height="${bottom + 4}" fill="transparent"/>
+      </svg>
+      <div class="ctip" style="display:none"></div>
+    </div>`;
+  }
+
+  /** Value of the history (or the forecast) at a point in time. */
+  _chartValueAt(ms) {
+    const ch = this._chart;
+    if (ms > ch.now) {
+      if (ch.level === null) return null;
+      const h = Math.min((ms - ch.now) / 3600e3, ch.projH || 0);
+      return ch.level + (ch.rate || 0) * h;
+    }
+    let v = null;
+    for (const p of ch.pts) {
+      if (p.t > ms) break;
+      v = p.v; // the history is a step line: a value holds until the next one
+    }
+    return v ?? ch.pts[0]?.v ?? ch.level;
+  }
+
+  _bindChart() {
+    const wrap = this._cardEl.querySelector(".chartwrap");
+    if (!wrap || !this._chart) return;
+    const svg = wrap.querySelector("svg");
+    const hit = wrap.querySelector(".chit");
+    const cross = wrap.querySelector(".cross");
+    const tip = wrap.querySelector(".ctip");
+    const t = TEXT[lang(this._hass)];
+    const loc = this._hass?.locale?.language || "en";
+    const show = (clientX) => {
+      const ch = this._chart;
+      const r = svg.getBoundingClientRect();
+      const px = Math.max(0, Math.min(ch.W, ((clientX - r.left) / r.width) * ch.W));
+      const ms = ch.t0 + (px / ch.W) * (ch.t1 - ch.t0);
+      const raw = this._chartValueAt(ms);
+      if (raw === null || !Number.isFinite(raw)) { hide(); return; }
+      // Round first, so the shown value and its stage always agree.
+      const v = Math.round(raw * 10) / 10;
+      const yy = ch.bottom - ((v - ch.lo) / (ch.hi - ch.lo)) * (ch.bottom - ch.top);
+      const line = cross.querySelector(".crossline");
+      line.setAttribute("x1", px);
+      line.setAttribute("x2", px);
+      const dot = cross.querySelector(".crossdot");
+      dot.setAttribute("cx", px);
+      dot.setAttribute("cy", Math.max(ch.top - 6, Math.min(ch.bottom, yy)));
+      dot.setAttribute("stroke", ch.color);
+      cross.style.display = "";
+      const at = new Date(ms);
+      const when = `${at.toLocaleDateString(loc, { weekday: "short", day: "numeric", month: "numeric" })} ${at.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })}`;
+      const stage = stageAt(ch.ths, v);
+      const num = new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(v);
+      tip.innerHTML = `<div class="ctime">${ms > ch.now ? `${esc(t.forecast_tip)} · ` : ""}${esc(when)}</div>`
+        + `<div><b>${esc(num)} ${esc(ch.unit)}</b> <span style="color:${esc(stage ? stage.color : "var(--secondary-text-color)")}">● ${esc(stage ? stage.name : t.normal)}</span></div>`;
+      tip.style.display = "block";
+      const scale = r.width / ch.W;
+      const left = px * scale - tip.offsetWidth / 2;
+      tip.style.left = `${Math.max(0, Math.min(r.width - tip.offsetWidth, left))}px`;
+      tip.style.top = `${Math.max(0, yy * scale - tip.offsetHeight - 12)}px`;
+    };
+    const hide = () => { cross.style.display = "none"; tip.style.display = "none"; };
+    hit.addEventListener("pointermove", (ev) => show(ev.clientX));
+    hit.addEventListener("pointerdown", (ev) => show(ev.clientX));
+    hit.addEventListener("pointerleave", hide);
+    // Tapping the chart shows the value instead of opening the more-info dialog.
+    wrap.addEventListener("click", (ev) => ev.stopPropagation());
   }
 
   _when(hours, t) {
@@ -1266,9 +1377,20 @@ const STYLE = `<style>
   .markfill { fill: var(--primary-text-color); }
   .proj { stroke: var(--primary-text-color); stroke-width: 1.5; stroke-dasharray: 3 2; }
   .projdot { fill: var(--card-background-color, #fff); stroke: var(--primary-text-color); stroke-width: 1.5; }
-  .chart { width: 100%; height: 120px; display: block; }
-  .projline { stroke-width: 2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
-  .nowline { stroke: var(--divider-color, #ccc); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .chartwrap { position: relative; }
+  .chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .cl { font-size: 15px; fill: var(--secondary-text-color); }
+  .crossline { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 3 3; }
+  .crossdot { fill: var(--card-background-color, #fff); stroke-width: 2.5; }
+  .chit { cursor: crosshair; touch-action: pan-y; }
+  .ctip { position: absolute; pointer-events: none; z-index: 2; white-space: nowrap; font-size: 13px; line-height: 1.45;
+    background: var(--card-background-color, #fff); color: var(--primary-text-color);
+    border: 1px solid var(--divider-color, #ccc); border-radius: 8px; padding: 5px 9px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .ctip b { font-weight: 500; font-size: 1.1em; }
+  .ctime { color: var(--secondary-text-color); font-size: 0.9em; }
+  .projline { stroke-width: 2.2; stroke-dasharray: 6 5; }
+  .nowline { stroke: var(--divider-color, #ccc); stroke-width: 1; }
   .ringsvg { flex: 0 0 120px; width: 120px; height: 120px; }
   .ringbg { fill: none; stroke: var(--divider-color, #e0e0e0); stroke-width: 12; }
   .ringval { font-size: 22px; font-weight: 500; fill: var(--primary-text-color); }

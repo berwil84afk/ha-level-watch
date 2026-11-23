@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "level_watch"
-VERSION: Final = "0.7.8"
+VERSION: Final = "0.8.0"
 CARD_URL: Final = "/level_watch/level-watch-card.js"
 
 # Basic settings
