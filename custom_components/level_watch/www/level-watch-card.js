@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.10.0";
+const CARD_VERSION = "0.11.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 const NORMAL_SALT = "#9aa8b6";
@@ -15,6 +15,8 @@ const TEXT = {
     rising: "steigend", falling: "fallend", stable: "stabil", unknown: "Tendenz offen",
     normal: "Normal", next: "Nächste Schwelle", in: "in", reached: "erreicht", level_now: "Pegel",
     left: "Reicht noch", per_day: "pro Tag", full_in: "Voll in", of: "von",
+    range_from: "Reichweite ab", range_soon: "Reichweite folgt bald", no_use: "Noch kein Verbrauch erkannt",
+    to_threshold: "bis", no_thr_short: "Keine Schwellen angelegt",
     min: "Min", max: "Max", change: "24 h", stale: "Daten veraltet",
     unavailable: "Sensor nicht verfügbar", no_data: "Noch keine Daten",
     not_found: "Entität nicht gefunden", not_level_watch: "Keine Level-Watch-Entität",
@@ -49,6 +51,8 @@ const TEXT = {
     rising: "rising", falling: "falling", stable: "stable", unknown: "trend pending",
     normal: "Normal", next: "Next threshold", in: "in", reached: "reached", level_now: "Level",
     left: "Lasts", per_day: "per day", full_in: "Full in", of: "of",
+    range_from: "Range from", range_soon: "Range follows soon", no_use: "No consumption seen yet",
+    to_threshold: "to", no_thr_short: "No thresholds yet",
     min: "Min", max: "Max", change: "24 h", stale: "Data stale",
     unavailable: "Sensor unavailable", no_data: "No data yet",
     not_found: "Entity not found", not_level_watch: "Not a Level Watch entity",
@@ -1002,25 +1006,53 @@ class LevelWatchCard extends HTMLElement {
     const stage = a.stage
       ? `<div class="cstage" style="color:${esc(a.color)}">${esc(a.stage)}</div>`
       : `<div class="cstage">${esc(t.normal)}</div>`;
-    let hint = "";
-    if (a.next_threshold && Number.isFinite(a.hours_to_next)) {
-      hint = `${a.next_threshold} ${t.in_short} ${this._duration(a.hours_to_next, t, fmt, true)}`;
-    } else if (Number.isFinite(a.days_left)) {
-      hint = this._duration(a.days_left * 24, t, fmt);
-    } else if (Number.isFinite(a.hours_to_full)) {
-      hint = `${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`;
-    }
+    const hint = this._compactHint(c);
+    // Thresholds as small coloured marks beside the bar, with their name on hover.
+    const marks = (a.thresholds || []).filter((th) => Number.isFinite(th.value)).map((th) => {
+      const y = this._fraction(c, th.value) * 100;
+      return `<span class="cmark ${th.active ? "on" : ""}" style="bottom:${y.toFixed(1)}%;--m:${esc(th.color)}"
+        title="${esc(this._thrTip(th, a))}"></span>`;
+    }).join("");
     const icon = TREND_ICON[a.trend]
       ? `<svg class="ticon ${a.trend}" viewBox="0 0 24 24"><path d="${TREND_ICON[a.trend]}"/></svg>` : "";
     return `<div class="cbox ${c.dim}">
-        <div class="cbar"><div style="height:${(frac * 100).toFixed(1)}%;background:${esc(color)}"></div></div>
+        <div class="cwrap"><div class="cbar"><div style="height:${(frac * 100).toFixed(1)}%;background:${esc(color)}"></div></div>${marks}</div>
         <div class="cinfo">
           <div class="ctitle">${esc(c.title)}</div>
           <div class="cval">${this._bigValue(c)}</div>
           ${stage}
-          ${hint || icon ? `<div class="chint">${icon}<span>${esc(hint)}</span></div>` : ""}
+          ${hint || icon ? `<div class="chint" title="${esc(hint)}">${icon}<span>${esc(hint)}</span></div>` : ""}
         </div>
       </div>`;
+  }
+
+  /**
+   * One line for the compact tile: the forecast if there is one, otherwise why
+   * there is none yet, or how far the nearest threshold is.
+   */
+  _compactHint(c) {
+    const { a, level, hasLevel, mode, fmt, t } = c;
+    if (a.quality === "stale") return t.stale;
+    if (a.quality === "unavailable") return t.unavailable;
+    if (!hasLevel || a.quality === "no_data") return t.no_data;
+    if (a.next_threshold && Number.isFinite(a.hours_to_next)) {
+      // Time first, so it stays visible on a narrow tile.
+      const when = `${t.in_short} ${this._duration(a.hours_to_next, t, fmt, true)}`;
+      return `${when.charAt(0).toUpperCase()}${when.slice(1)}: ${a.next_threshold}`;
+    }
+    if (Number.isFinite(a.days_left)) return `${t.left} ${this._duration(a.days_left * 24, t, fmt)}`;
+    if (Number.isFinite(a.hours_to_full)) return `${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`;
+    if (mode === "tank" && a.consumption_status === "collecting") {
+      const hours = (Date.parse(a.consumption_ready) - Date.now()) / 3600e3;
+      return Number.isFinite(hours) && hours > 0.05 ? `${t.range_from} ${this._when(hours, t)}` : t.range_soon;
+    }
+    if (mode === "tank" && a.consumption_status === "no_use") return t.no_use;
+    // Nothing moves: say how far the nearest threshold still is.
+    const ahead = (a.thresholds || []).filter((th) => !th.active
+      && (th.direction === "below" ? th.value < level : th.value > level));
+    if (!ahead.length) return (a.thresholds || []).length ? "" : t.no_thr_short;
+    const near = ahead.reduce((x, y) => (Math.abs(y.value - level) < Math.abs(x.value - level) ? y : x));
+    return `${fmt(Math.abs(near.value - level))} ${unitOf(a)} ${t.to_threshold} ${near.name}`;
   }
 
   /** Tooltip text of a threshold line, e.g. "Meldestufe 2 · ≥ 350 cm (erreicht)". */
@@ -1609,6 +1641,11 @@ const STYLE = `<style>
   .cbar { width: 10px; border-radius: 5px; background: var(--divider-color, #e0e0e0); position: relative;
     overflow: hidden; flex: none; }
   .cbar div { position: absolute; left: 0; right: 0; bottom: 0; transition: height 0.8s ease; }
+  .cwrap { position: relative; display: flex; flex: none; padding-right: 7px; }
+  .cmark { position: absolute; left: -3px; width: 20px; height: 3px; margin-bottom: -1.5px; border-radius: 2px;
+    background: var(--m); opacity: .85; cursor: help; }
+  .cmark::after { content: ""; position: absolute; inset: -5px 0; }
+  .cmark.on { height: 4px; opacity: 1; box-shadow: 0 0 0 1px var(--card-background-color, #fff); }
   .cinfo { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .ctitle { font-size: 0.9em; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; }
@@ -1616,6 +1653,11 @@ const STYLE = `<style>
   .cstage { font-size: 0.85em; color: var(--secondary-text-color); }
   .chint { display: flex; align-items: center; gap: 4px; font-size: 0.85em; color: var(--secondary-text-color); }
   .chint .ticon { width: 16px; height: 16px; }
+  .chint { min-width: 0; }
+  .chint { align-items: flex-start; }
+  .chint span { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.3; }
+  .chint .ticon { flex: none; margin-top: 1px; }
 </style>`;
 
 customElements.define("level-watch-card", LevelWatchCard);

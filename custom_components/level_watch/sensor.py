@@ -95,6 +95,10 @@ def _level_attrs(model: LevelWatchModel) -> dict[str, Any]:
         "consumption": _round(snap.consumption, 2),
         "days_left": _round(snap.days_left, 1),
         "hours_to_full": _round(snap.hours_to_full, 2),
+        "consumption_status": snap.consumption_status,
+        "consumption_ready": (
+            snap.consumption_ready.isoformat() if snap.consumption_ready else None
+        ),
         "thresholds": [
             {
                 "name": t.name,
@@ -163,6 +167,7 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
     LevelSensorDescription(
         key="percent",
         translation_key="percent",
+        icon="mdi:gauge",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
@@ -178,6 +183,7 @@ SENSORS: tuple[LevelSensorDescription, ...] = (
     LevelSensorDescription(
         key="rate",
         translation_key="rate",
+        icon="mdi:speedometer",
         native_unit_of_measurement=UNIT_RATE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,

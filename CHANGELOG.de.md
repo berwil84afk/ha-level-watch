@@ -6,6 +6,17 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.11.0] - 2026-11-24
+
+### Neu
+- Karte (Stil Kompakt): Schwellen erscheinen als farbige Marken neben dem Balken, mit Name und Wert bei Mouseover.
+- Karte (Stil Kompakt): Die Hinweiszeile erklärt immer etwas. Gibt es keine Prognose, steht dort warum, zum Beispiel „Reichweite ab morgen 04:07“, solange noch Daten für den Verbrauch gesammelt werden, „Noch kein Verbrauch erkannt“ oder wie weit die nächste Schwelle entfernt ist („11 kg bis Salz nachfüllen“).
+- Pegelsensor: Die neuen Attribute `consumption_status` und `consumption_ready` sagen, wann die Reichweite eines Tanks erscheinen kann.
+
+### Geändert
+- Karte (Stil Kompakt): Der Hinweis nennt zuerst die Zeit („In 15 Tagen: Salz nachfüllen“) und darf zwei Zeilen nutzen, statt abgeschnitten zu werden.
+- Die Sensoren *Änderungsrate* und *Füllstand* haben eigene Icons statt des Standard-Auges.
+
 ## [0.10.0] - 2026-11-24
 
 ### Neu

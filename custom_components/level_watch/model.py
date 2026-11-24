@@ -213,6 +213,9 @@ class Snapshot:
     days_left: float | None = None
     hours_to_full: float | None = None
     last_refill: datetime | None = None
+    # Why there is no range yet: "collecting" (until consumption_ready) or "no_use".
+    consumption_status: str | None = None
+    consumption_ready: datetime | None = None
 
 
 class LevelWatchModel:
@@ -507,9 +510,11 @@ class LevelWatchModel:
                 s.consumption_window,
                 min(MIN_CONSUMPTION_SPAN, s.consumption_window / 2),
             )
+            days = tank.days_left(tank.LINEAR, level, s.ref_min, consumption)
             values.update(
                 consumption=consumption,
-                days_left=tank.days_left(tank.LINEAR, level, s.ref_min, consumption),
+                days_left=days,
+                **self._consumption_status(now, consumption, days),
             )
             return values
         shape = s.tank
@@ -531,7 +536,25 @@ class LevelWatchModel:
             consumption=consumption,
             days_left=tank.days_left(shape, level, s.ref_min, consumption),
         )
+        values.update(self._consumption_status(now, consumption, values["days_left"]))
         return values
+
+    def _consumption_status(
+        self, now: float, consumption: float | None, days_left: float | None
+    ) -> dict[str, Any]:
+        """Tell the card why the range is missing and when it can appear."""
+        if consumption is None:
+            window = self.settings.consumption_window
+            samples = self.long.since(now - window)
+            start = samples[0].ts if samples else now
+            ready = max(now, start + min(MIN_CONSUMPTION_SPAN, window / 2))
+            return {
+                "consumption_status": "collecting",
+                "consumption_ready": dt_util.utc_from_timestamp(ready),
+            }
+        if days_left is None:
+            return {"consumption_status": "no_use"}
+        return {"consumption_status": "ok"}
 
     # -- thresholds ----------------------------------------------------------
 

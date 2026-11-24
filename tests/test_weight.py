@@ -83,8 +83,12 @@ async def test_weight_sensors(
     assert level.attributes["unit_of_measurement"] == "kg"
     assert level.attributes["device_class"] == "weight"
     assert level.attributes["unit"] == "kg"
+    assert level.attributes["consumption_status"] == "collecting"
+    assert level.attributes["consumption_ready"] is not None
     assert float(_state(hass, "percent").state) == 60  # 30 of 50 kg
     assert _state(hass, "rate").attributes["unit_of_measurement"] == "kg/h"
+    assert _state(hass, "rate").attributes["icon"] == "mdi:speedometer"
+    assert _state(hass, "percent").attributes["icon"] == "mdi:gauge"
     registry = er.async_get(hass)
     for key in ("volume", "free_volume"):
         assert registry.async_get_entity_id("sensor", DOMAIN, f"salz_{key}") is None
@@ -100,6 +104,7 @@ async def test_weight_sensors(
     assert consumption.attributes["unit_of_measurement"] == "kg/d"
     assert float(consumption.state) == pytest.approx(1.5, rel=0.02)
     assert float(_state(hass, "days_left").state) == pytest.approx(27 / 1.5, rel=0.02)
+    assert _state(hass, "level").attributes["consumption_status"] == "ok"
 
     # A new bag of salt counts as refill.
     freezer.tick(timedelta(minutes=10))

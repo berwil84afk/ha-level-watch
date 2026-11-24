@@ -6,6 +6,17 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.11.0] - 2026-11-24
+
+### Added
+- Card (compact style): thresholds appear as coloured marks beside the bar, with name and value on hover.
+- Card (compact style): the hint line always explains something. If there is no forecast, it says why, for example "Range from tomorrow 04:07" while consumption data is still being collected, "No consumption seen yet", or how far the nearest threshold is ("11 kg to Refill salt").
+- Level sensor: new attributes `consumption_status` and `consumption_ready` tell when the range of a tank can appear.
+
+### Changed
+- Card (compact style): the hint names the time first ("In 15 days: Refill salt") and may use two lines instead of being cut off.
+- Sensors *Rate of change* and *Fill level* have their own icons instead of the default eye.
+
 ## [0.10.0] - 2026-11-24
 
 ### Added
