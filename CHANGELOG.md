@@ -6,6 +6,11 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.12.1] - 2026-11-24
+
+### Changed
+- Telegram: the title of a message is now bold. Telegram shows the title as a plain first line, so Level Watch marks it up in the parse mode of your bot (Markdown, MarkdownV2 or HTML). Other services get the title unchanged.
+
 ## [0.12.0] - 2026-11-24
 
 ### Added

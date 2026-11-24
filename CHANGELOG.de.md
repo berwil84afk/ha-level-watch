@@ -6,6 +6,11 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.12.1] - 2026-11-24
+
+### Geändert
+- Telegram: Der Titel einer Meldung ist jetzt fett. Telegram zeigt den Titel als normale erste Zeile, deshalb zeichnet Level Watch ihn im Parse-Modus deines Bots aus (Markdown, MarkdownV2 oder HTML). Andere Dienste bekommen den Titel unverändert.
+
 ## [0.12.0] - 2026-11-24
 
 ### Neu
