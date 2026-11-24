@@ -63,7 +63,7 @@ Go to **Settings → Devices & services → Add integration → Level Watch**. S
 | Measurement | *Level*: the sensor reports the height of the surface. *Distance from above*: the sensor is mounted on top and measures down to the surface, like most ultrasonic and radar sensors. |
 | Sensor mounting height | Only for *Distance from above*: height of the sensor above the zero point, for example the tank bottom. |
 | Offset | Added to every reading, for example to correct the gauge zero. |
-| Reference bottom / top | The levels that count as 0 % and 100 %. They also set the range of the card. |
+| Reference bottom / top | The levels that count as 0 % and 100 %. They also set the range of the card. For a tank, enter the maximum fill level as *Reference top*, so the fill level, the scale and the tank drawing are right. |
 | Tank | Only for tanks: shape and inner dimensions (see [Tanks](#tanks)). |
 
 ### Where the level can come from
@@ -100,6 +100,15 @@ Each threshold has these settings:
 | Message | Leave empty for the standard text. Placeholders: `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}`. |
 | Send all-clear | Also notify when the threshold clears. |
 | Repeat every | Repeat the message while the threshold holds. 0 means once. |
+
+**Testing a message:** in the card's threshold editor, *Send test* sends the message of a threshold once to the chosen targets, with the current level and marked as *Test:*. This also works before you save. Nothing else changes: no event, no stage, no repeat. In automations or under **Developer tools → Actions** you can do the same with the action `level_watch.send_test`:
+
+```yaml
+action: level_watch.send_test
+data:
+  entity_id: sensor.rhine_level
+  threshold: Warning level 1   # optional, without it every threshold with a notification is tested
+```
 
 Thresholds are only checked while the data quality is *OK*. A failed or stale sensor therefore never sends an alert. If you want to know about that too, build an automation on the *Data quality* sensor.
 

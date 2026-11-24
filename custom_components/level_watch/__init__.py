@@ -4,11 +4,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import voluptuous as vol
+
 from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_COMPONENT_LOADED, Platform
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import (
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+    callback,
+)
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
@@ -37,7 +47,46 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
     _async_register_card(hass)
     websocket.async_register(hass)
+    _async_register_services(hass)
     return True
+
+
+SEND_TEST_SCHEMA = vol.Schema(
+    {vol.Required("entity_id"): cv.entity_id, vol.Optional("threshold"): cv.string}
+)
+
+
+@callback
+def _async_register_services(hass: HomeAssistant) -> None:
+    async def send_test(call: ServiceCall) -> ServiceResponse:
+        model = websocket.model_for(hass, call.data["entity_id"])
+        if model is None:
+            raise ServiceValidationError(
+                f"{call.data['entity_id']} is not an entity of a loaded Level Watch entry"
+            )
+        wanted = call.data.get("threshold", "").strip().casefold()
+        if wanted:
+            chosen = [th for th in model.settings.thresholds if th.name.casefold() == wanted]
+            if not chosen:
+                raise ServiceValidationError(f"No threshold named {call.data['threshold']!r}")
+            if not chosen[0].targets:
+                raise ServiceValidationError(
+                    f"Threshold {chosen[0].name!r} has no notify target"
+                )
+        else:
+            chosen = [th for th in model.settings.thresholds if th.notify and th.targets]
+            if not chosen:
+                raise ServiceValidationError("No threshold with a notification")
+        results = {th.name: await model.async_send_test(th) for th in chosen}
+        return {"thresholds": results} if call.return_response else None
+
+    hass.services.async_register(
+        DOMAIN,
+        "send_test",
+        send_test,
+        schema=SEND_TEST_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 @callback

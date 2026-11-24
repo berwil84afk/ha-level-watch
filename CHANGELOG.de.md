@@ -6,6 +6,16 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.10.0] - 2026-11-24
+
+### Neu
+- Karte: *Test senden* im Schwelleneditor schickt die Meldung einer Schwelle einmal an die gewählten Ziele, als Test markiert und mit dem aktuellen Pegel. Das geht auch vor dem Speichern, und du siehst, welche Ziele fehlgeschlagen sind.
+- Aktion `level_watch.send_test` für dasselbe in Automationen oder in den Entwicklerwerkzeugen. Ohne Namen einer Schwelle werden alle Schwellen mit Meldung getestet.
+
+### Geändert
+- Karte: Die Meldeziele im Schwelleneditor sind gruppiert (Home Assistant, Companion App, Benachrichtigungs-Entitäten, weitere Dienste), mit lesbaren Namen, Suchfeld und den gewählten Zielen als Chips oben.
+- Einrichtung: Die Hilfe zu *Bezug oben* erklärt, dass du beim Tank den maximalen Füllstand eintragen sollst, damit Füllstand, Skala und Tankgrafik stimmen.
+
 ## [0.9.0] - 2026-11-24
 
 ### Neu

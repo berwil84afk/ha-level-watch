@@ -88,7 +88,14 @@ from .const import (
     UNIT_KG,
     UNIT_PERCENT,
 )
-from .thresholds import Threshold, format_message, load_thresholds, next_threshold, stage
+from .thresholds import (
+    Threshold,
+    format_message,
+    load_thresholds,
+    next_threshold,
+    stage,
+    texts,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -607,6 +614,40 @@ class LevelWatchModel:
             ),
             eager_start=True,
         )
+
+
+    async def async_send_test(self, th: Threshold) -> dict[str, Any]:
+        """Send the threshold's message once, marked as a test.
+
+        Uses the current level (or the threshold value if there is none yet) and
+        changes no state: no event, no repeat timer, no active flag.
+        """
+        snap = self.snapshot
+        message = format_message(
+            th.message,
+            language=self.hass.config.language,
+            name=self.settings.name,
+            threshold=th,
+            level=snap.level if snap.level is not None else th.value,
+            trend=snap.trend,
+            rate=snap.rate,
+            unit=self.settings.level_unit,
+        )
+        prefix = texts(self.hass.config.language)["test"]
+        failed = await messaging.async_send(
+            self.hass,
+            th.targets,
+            title=self.settings.name,
+            message=f"{prefix}: {message}",
+            tag=f"{DOMAIN}_{self.entry_id}_{th.id}_test",
+            critical=th.critical,
+            cleared=False,
+        )
+        return {
+            "message": f"{prefix}: {message}",
+            "sent": len(th.targets) - len(failed),
+            "failed": [{"target": target, "error": error} for target, error in failed],
+        }
 
 
 def _reading_time(state: State) -> float:

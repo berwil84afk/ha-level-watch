@@ -24,7 +24,7 @@
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
           "offset": "Added to every value (in cm, %, or kg, like the level), e.g. to correct the gauge zero.",
           "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
-          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage; for a sensor in % it defaults to 100."
+          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
         },
         "sections": {
           "tank": {
@@ -134,7 +134,7 @@
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
           "offset": "Added to every value (in cm, %, or kg, like the level), e.g. to correct the gauge zero.",
           "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
-          "reference_max": "Level that counts as 100 % (full). Leave empty for no percentage; for a sensor in % it defaults to 100."
+          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
         },
         "sections": {
           "advanced": {
@@ -334,6 +334,22 @@
       },
       "last_refill": {
         "name": "Last refill"
+      }
+    }
+  },
+  "services": {
+    "send_test": {
+      "name": "Send test notification",
+      "description": "Sends the message of a threshold once, marked as a test, to its notify targets. Nothing else changes: no event, no stage, no repeat.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "Any entity of the Level Watch device, for example its level sensor."
+        },
+        "threshold": {
+          "name": "Threshold",
+          "description": "Name of the threshold. Leave empty to test every threshold that sends notifications."
+        }
       }
     }
   }

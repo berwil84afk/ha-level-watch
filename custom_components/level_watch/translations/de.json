@@ -24,7 +24,7 @@
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
           "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
-          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
+          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
         },
         "sections": {
           "tank": {
@@ -134,7 +134,7 @@
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
           "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
-          "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
+          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
         },
         "sections": {
           "advanced": {
@@ -334,6 +334,22 @@
       },
       "last_refill": {
         "name": "Letztes Nachtanken"
+      }
+    }
+  },
+  "services": {
+    "send_test": {
+      "name": "Testmeldung senden",
+      "description": "Sendet die Meldung einer Schwelle einmal, als Test markiert, an ihre Meldewege. Sonst ändert sich nichts: kein Ereignis, keine Stufe, keine Wiederholung.",
+      "fields": {
+        "entity_id": {
+          "name": "Entität",
+          "description": "Eine beliebige Entität des Level-Watch-Geräts, zum Beispiel der Pegelsensor."
+        },
+        "threshold": {
+          "name": "Schwelle",
+          "description": "Name der Schwelle. Leer lassen, um alle Schwellen mit Meldung zu testen."
+        }
       }
     }
   }

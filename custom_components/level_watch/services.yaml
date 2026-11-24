@@ -1,0 +1,12 @@
+send_test:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: level_watch
+    threshold:
+      required: false
+      example: Warning level 1
+      selector:
+        text:

@@ -8,7 +8,7 @@ from uuid import uuid4
 import voluptuous as vol
 
 from homeassistant.components import websocket_api
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
@@ -41,6 +41,7 @@ THRESHOLD_SCHEMA = vol.Schema(
 def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_thresholds)
     websocket_api.async_register_command(hass, ws_save_thresholds)
+    websocket_api.async_register_command(hass, ws_test_threshold)
 
 
 def _entry_for(hass: HomeAssistant, entity_id: str) -> ConfigEntry | None:
@@ -48,6 +49,14 @@ def _entry_for(hass: HomeAssistant, entity_id: str) -> ConfigEntry | None:
     if reg is None or reg.platform != DOMAIN or reg.config_entry_id is None:
         return None
     return hass.config_entries.async_get_entry(reg.config_entry_id)
+
+
+def model_for(hass: HomeAssistant, entity_id: str):
+    """The running model behind a Level Watch entity, or None."""
+    entry = _entry_for(hass, entity_id)
+    if entry is None or entry.state is not ConfigEntryState.LOADED:
+        return None
+    return entry.runtime_data
 
 
 def _public(item: dict[str, Any]) -> dict[str, Any]:
@@ -133,3 +142,34 @@ def ws_save_thresholds(
         entry, options={**entry.options, CONF_THRESHOLDS: cleaned}
     )
     connection.send_result(msg["id"], {"thresholds": [_public(t) for t in cleaned]})
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/thresholds/test",
+        vol.Required("entity_id"): str,
+        vol.Required("threshold"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_test_threshold(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Send a test message for a threshold as it is in the editor, saved or not."""
+    model = model_for(hass, msg["entity_id"])
+    if model is None:
+        connection.send_error(msg["id"], "not_found", "Not a loaded Level Watch entity")
+        return
+    try:
+        item = THRESHOLD_SCHEMA(msg["threshold"])
+    except vol.Invalid as err:
+        connection.send_error(msg["id"], "invalid_format", str(err))
+        return
+    if not item["targets"]:
+        connection.send_error(msg["id"], "targets_required", "No notify target")
+        return
+    item["id"] = item.get("id") or "draft"
+    item["message"] = item.get("message") or ""
+    result = await model.async_send_test(Threshold.from_dict(item))
+    connection.send_result(msg["id"], result)

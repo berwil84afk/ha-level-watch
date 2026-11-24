@@ -63,7 +63,7 @@ Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → Le
 | Messart | *Pegel*: Der Sensor meldet die Höhe der Oberfläche. *Abstand von oben*: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche, wie die meisten Ultraschall- und Radarsensoren. |
 | Einbauhöhe des Sensors | Nur bei *Abstand von oben*: Höhe des Sensors über dem Nullpunkt, zum Beispiel über dem Tankboden. |
 | Korrektur | Wird zu jedem Messwert addiert, zum Beispiel um den Pegelnullpunkt zu korrigieren. |
-| Bezug unten / oben | Die Pegel, die als 0 % und 100 % gelten. Sie legen auch den Bereich der Karte fest. |
+| Bezug unten / oben | Die Pegel, die als 0 % und 100 % gelten. Sie legen auch den Bereich der Karte fest. Trag beim Tank den maximalen Füllstand als *Bezug oben* ein, damit Füllstand, Skala und Tankgrafik stimmen. |
 | Tank | Nur bei Tanks: Form und Innenmaße (siehe [Tanks](#tanks)). |
 
 ### Woher der Pegel kommen kann
@@ -100,6 +100,15 @@ Jede Schwelle hat diese Einstellungen:
 | Meldungstext | Leer lassen für den Standardtext. Platzhalter: `{name}`, `{threshold}`, `{value}`, `{level}`, `{trend}`, `{rate}`. |
 | Entwarnung senden | Auch melden, wenn die Schwelle aufgehoben ist. |
 | Wiederholen alle | Meldung wiederholen, solange die Schwelle gilt. 0 bedeutet einmal. |
+
+**Meldung testen:** Im Schwelleneditor der Karte schickt *Test senden* die Meldung einer Schwelle einmal an die gewählten Ziele, mit dem aktuellen Pegel und als *Test:* markiert. Das geht auch vor dem Speichern. Sonst ändert sich nichts: kein Ereignis, keine Stufe, keine Wiederholung. In Automationen oder unter **Entwicklerwerkzeuge → Aktionen** geht dasselbe mit der Aktion `level_watch.send_test`:
+
+```yaml
+action: level_watch.send_test
+data:
+  entity_id: sensor.rhein_pegel
+  threshold: Meldestufe 1   # optional, ohne sie werden alle Schwellen mit Meldung getestet
+```
 
 Schwellen werden nur geprüft, solange die Datenqualität *OK* ist. Ein ausgefallener oder veralteter Sensor löst also nie einen Alarm aus. Willst du darüber auch informiert werden, baue eine Automation auf den Sensor *Datenqualität*.
 

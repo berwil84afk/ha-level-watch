@@ -131,7 +131,7 @@
     locale: { language: "de" },
     language: "de",
     entities: {},
-    devices: {},
+    devices: { phone: { name: "Pixel 8" } },
     themes: { darkMode: false },
     user: { is_admin: true },
     async callWS(msg) {
@@ -144,6 +144,18 @@
             persistent_notification: "Home Assistant (persistent notification)",
             "service:mobile_app_pixel_8": "notify.mobile_app_pixel_8",
             "entity:notify.telegram": "Telegram (notify.telegram)",
+            "service:alexa_media": "notify.alexa_media",
+            "service:alexa_media_echo_garten": "notify.alexa_media_echo_garten",
+            "service:alexa_media_echo_kuche": "notify.alexa_media_echo_kuche",
+            "service:alexa_media_last_called": "notify.alexa_media_last_called",
+            "service:mobile_app_galaxy_watch4_zcsk": "notify.mobile_app_galaxy_watch4_zcsk",
+            "service:mobile_app_handy_anna": "notify.mobile_app_handy_anna",
+            "service:notify": "notify.notify",
+            "entity:notify.echo_garten_durchsagen": "Echo Garten Durchsagen (notify.echo_garten_durchsagen)",
+            "entity:notify.echo_garten_sprechen": "Echo Garten Sprechen (notify.echo_garten_sprechen)",
+            "entity:notify.echo_kuche_durchsagen": "Echo Küche Durchsagen (notify.echo_kuche_durchsagen)",
+            "entity:notify.familie_bot_anna": "Anna (notify.familie_bot_anna)",
+            "entity:notify.soundbar_q700a_none": "Soundbar Q700A Sprechen (notify.soundbar_q700a_none)",
           },
           thresholds: (a.thresholds || []).map((th, i) => ({
             id: `t${i}`, name: th.name, value: th.value, direction: th.direction, hysteresis: 5,
@@ -152,6 +164,12 @@
             message: "", clear_message: true, repeat: 0,
           })),
         };
+      }
+      if (msg.type === "level_watch/thresholds/test") {
+        await new Promise((r) => setTimeout(r, 600));
+        const failed = msg.threshold.targets.filter((x) => x === "service:notify")
+          .map((target) => ({ target, error: "notify.notify does not exist (any more)" }));
+        return { message: "Test: …", sent: msg.threshold.targets.length - failed.length, failed };
       }
       if (msg.type === "level_watch/thresholds/save") {
         const s = states[msg.entity_id];

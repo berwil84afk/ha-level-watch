@@ -6,6 +6,16 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.10.0] - 2026-11-24
+
+### Added
+- Card: *Send test* in the threshold editor sends the message of a threshold once to the chosen targets, marked as a test and with the current level. It works before saving and shows which targets failed.
+- Action `level_watch.send_test` for the same in automations or the developer tools. Without a threshold name it tests every threshold that sends notifications.
+
+### Changed
+- Card: the notify targets in the threshold editor are grouped (Home Assistant, Companion app, notify entities, other services), with readable names, a search field and the chosen targets as chips at the top.
+- Setup: the help for *Reference top* explains that for a tank you should enter the maximum fill level, so the fill level, the scale and the tank drawing are right.
+
 ## [0.9.0] - 2026-11-24
 
 ### Added

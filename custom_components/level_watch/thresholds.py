@@ -191,6 +191,7 @@ def preset_thresholds(
 
 TEXTS = {
     "de": {
+        "test": "Test",
         "alert": "{name}: {threshold} erreicht. Pegel {level} {unit}, {trend} ({rate} {unit}/h).",
         "clear": "{name}: {threshold} aufgehoben. Pegel {level} {unit}, {trend}.",
         "rising": "steigend",
@@ -199,6 +200,7 @@ TEXTS = {
         "unknown": "Tendenz unbekannt",
     },
     "en": {
+        "test": "Test",
         "alert": "{name}: {threshold} reached. Level {level} {unit}, {trend} ({rate} {unit}/h).",
         "clear": "{name}: {threshold} cleared. Level {level} {unit}, {trend}.",
         "rising": "rising",

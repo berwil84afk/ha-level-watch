@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.9.0";
+const CARD_VERSION = "0.10.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 const NORMAL_SALT = "#9aa8b6";
@@ -23,6 +23,12 @@ const TEXT = {
     mode_auto: "Automatisch", mode_water: "Wasserpegel", mode_tank: "Tank",
     fill: "Füllung", fill_auto: "Automatisch (Körner bei kg, sonst Wasser)", fill_water: "Wasser",
     fill_granules: "Körnig (z. B. Salz)", color: "Farbe im Normalzustand",
+    g_ha: "Home Assistant", g_app: "Companion App", g_entity: "Benachrichtigungs-Entitäten",
+    g_service: "Weitere Dienste", t_persistent: "Meldung in Home Assistant", t_search: "Ziel suchen …",
+    t_none: "Noch kein Ziel gewählt", t_nomatch: "Kein Ziel passt zur Suche.", t_remove: "Entfernen",
+    t_test: "Test senden", t_testing: "Sendet …", t_sent1: "Testmeldung an 1 Ziel gesendet",
+    t_sentn: "Testmeldung an {n} Ziele gesendet", t_failed: "Fehlgeschlagen", t_pick: "Wähle zuerst ein Ziel.",
+    t_test_hint: "Schickt den Meldungstext mit dem aktuellen Pegel, auch ungespeichert. Sonst ändert sich nichts.",
     style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
     style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
     now: "jetzt", expected: "voraussichtlich", today: "heute", tomorrow: "morgen",
@@ -51,6 +57,12 @@ const TEXT = {
     mode_auto: "Automatic", mode_water: "Water level", mode_tank: "Tank",
     fill: "Fill", fill_auto: "Automatic (granules for kg, water otherwise)", fill_water: "Water",
     fill_granules: "Granules (e.g. salt)", color: "Colour when normal",
+    g_ha: "Home Assistant", g_app: "Companion app", g_entity: "Notify entities",
+    g_service: "Other services", t_persistent: "Notification in Home Assistant", t_search: "Search targets …",
+    t_none: "No target chosen yet", t_nomatch: "No target matches the search.", t_remove: "Remove",
+    t_test: "Send test", t_testing: "Sending …", t_sent1: "Test sent to 1 target",
+    t_sentn: "Test sent to {n} targets", t_failed: "Failed", t_pick: "Choose a target first.",
+    t_test_hint: "Sends the message with the current level, even before saving. Nothing else changes.",
     style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
     style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
     now: "now", expected: "expected", today: "today", tomorrow: "tomorrow",
@@ -326,12 +338,14 @@ class LevelWatchCard extends HTMLElement {
       this._editor = {
         draft: res.thresholds.map((th) => ({ ...th, color: toHex(th.color) })),
         targets: res.targets || {},
+        query: {},
+        test: {},
         open: new Set(),
         error: "",
         saving: false,
       };
     } catch (err) {
-      this._editor = { draft: [], targets: {}, open: new Set(), error: `${t.err_save}: ${err.message || err}`, saving: false };
+      this._editor = { draft: [], targets: {}, query: {}, test: {}, open: new Set(), error: `${t.err_save}: ${err.message || err}`, saving: false };
     }
     this._renderEditor();
     if (!this._dialog.open) this._dialog.showModal();
@@ -367,7 +381,9 @@ class LevelWatchCard extends HTMLElement {
         }
         case "toggle": if (ed.open.has(idx)) ed.open.delete(idx); else ed.open.add(idx); break;
         case "dir": ed.draft[idx].direction = btn.dataset.dir; break;
+        case "untarget": ed.draft[idx].targets = ed.draft[idx].targets.filter((x) => x !== btn.dataset.id); break;
         case "save": this._saveEditor(); return;
+        case "test": this._testThreshold(idx); return;
         default: return;
       }
       this._renderEditor();
@@ -383,10 +399,20 @@ class LevelWatchCard extends HTMLElement {
     if (!field || !this._editor) return;
     const th = this._editor.draft[Number(el.dataset.idx)];
     if (!th) return;
+    if (field === "tsearch") {
+      // Filter in place, so the search field keeps its focus.
+      this._editor.query[el.dataset.idx] = el.value;
+      filterTargets(el.closest(".tg"), el.value);
+      return;
+    }
     if (field === "target") {
+      if (!structural) return;
       const set = new Set(th.targets);
       if (el.checked) set.add(el.value); else set.delete(el.value);
       th.targets = [...set];
+      const box = el.closest(".tg")?.querySelector(".tsel");
+      if (box) box.innerHTML = this._targetChips(th, Number(el.dataset.idx));
+      return;
     } else if (el.type === "checkbox") {
       th[field] = el.checked;
     } else if (el.type === "number") {
@@ -400,10 +426,87 @@ class LevelWatchCard extends HTMLElement {
     else this._renderPreview();
   }
 
+  /** Chosen targets as removable chips, then a searchable, grouped list. */
+  _targetPicker(th, i, groups) {
+    const t = TEXT[lang(this._hass)];
+    const count = groups.reduce((n, g) => n + g.items.length, 0);
+    const query = this._editor.query[i] || "";
+    const list = groups.map((g) => `
+      <div class="tgrp"><div class="tgh">${esc(g.title)}</div>
+        ${g.items.map((it) => `<label class="trow" data-q="${esc(`${it.name} ${it.sub}`.toLowerCase())}" title="${esc(it.sub)}">
+          <input type="checkbox" data-field="target" data-idx="${i}" value="${esc(it.id)}" ${th.targets.includes(it.id) ? "checked" : ""}>
+          <span class="tn">${esc(it.name)}</span><span class="ts">${esc(it.sub)}</span></label>`).join("")}
+      </div>`).join("");
+    const html = `<div class="tg">
+      <div class="tsel">${this._targetChips(th, i)}</div>
+      ${count > 6 ? `<input class="tsearch" type="search" data-field="tsearch" data-idx="${i}" placeholder="${esc(t.t_search)}" value="${esc(query)}">` : ""}
+      <div class="tlist ${count > 6 ? "scroll" : ""}">${list}<div class="hint tnone" hidden>${esc(t.t_nomatch)}</div></div>
+    </div>`;
+    return html;
+  }
+
+  _testResult(i) {
+    const t = TEXT[lang(this._hass)];
+    const r = this._editor?.test?.[i];
+    if (!r) return `<small>${esc(t.t_test_hint)}</small>`;
+    if (r.busy) return `<small>${esc(t.t_testing)}</small>`;
+    if (r.error) return `<small class="bad">${esc(r.error)}</small>`;
+    const names = Object.fromEntries(groupTargets(this._editor.targets, this._hass, t)
+      .flatMap((g) => g.items.map((it) => [it.id, it.name])));
+    const ok = r.sent ? `<small class="good">${esc(r.sent === 1 ? t.t_sent1 : t.t_sentn.replace("{n}", r.sent))}</small>` : "";
+    const bad = r.failed?.length
+      ? `<small class="bad">${esc(t.t_failed)}: ${r.failed.map((f) => esc(names[f.target] || f.target)).join(", ")}</small>` : "";
+    return `${ok}${bad}`;
+  }
+
+  async _testThreshold(i) {
+    const ed = this._editor;
+    const th = ed?.draft[i];
+    if (!th) return;
+    const t = TEXT[lang(this._hass)];
+    const show = () => {
+      const box = this._dialog.querySelector(`.tres[data-idx="${i}"]`);
+      if (box) box.innerHTML = this._testResult(i);
+    };
+    if (!th.targets.length) { ed.test[i] = { error: t.t_pick }; show(); return; }
+    ed.test[i] = { busy: true };
+    show();
+    try {
+      ed.test[i] = await this._hass.callWS({
+        type: "level_watch/thresholds/test",
+        entity_id: this._entityId,
+        threshold: {
+          ...th,
+          name: String(th.name || "").trim() || t.new_threshold,
+          value: Number.isFinite(th.value) ? th.value : 0,
+          color: toRgb(th.color),
+          hysteresis: Number(th.hysteresis) || 0,
+          repeat: Number(th.repeat) || 0,
+        },
+      });
+    } catch (err) {
+      ed.test[i] = { error: `${t.t_failed}: ${err.message || err.code || err}` };
+    }
+    show();
+  }
+
+  _targetChips(th, i) {
+    const t = TEXT[lang(this._hass)];
+    if (!th.targets.length) return `<span class="hint">${esc(t.t_none)}</span>`;
+    const names = Object.fromEntries(groupTargets(this._editor.targets, this._hass, t)
+      .flatMap((g) => g.items.map((it) => [it.id, it.name])));
+    return th.targets.map((id) => `<button class="tchip" data-act="untarget" data-idx="${i}" data-id="${esc(id)}" title="${esc(t.t_remove)}">
+      ${esc(names[id] || id)}<ha-icon icon="mdi:close"></ha-icon></button>`).join("");
+  }
+
   _draftThresholds() {
     return (this._editor?.draft || [])
       .filter((th) => Number.isFinite(th.value))
       .map((th) => ({ name: th.name, value: th.value, direction: th.direction, color: th.color, active: false }));
+  }
+
+  _applyTargetSearch() {
+    for (const input of this._dialog.querySelectorAll(".tsearch")) filterTargets(input.closest(".tg"), input.value);
   }
 
   _renderPreview() {
@@ -417,19 +520,19 @@ class LevelWatchCard extends HTMLElement {
     const ed = this._editor;
     if (!ed) return;
     const t = TEXT[lang(this._hass)];
-    const targetEntries = Object.entries(ed.targets);
+    const groups = groupTargets(ed.targets, this._hass, t);
     const u = unitOf(this._lastCtx?.a);
     const rows = ed.draft.map((th, i) => {
       const open = ed.open.has(i);
-      const targets = targetEntries.length
-        ? targetEntries.map(([id, label]) => `<label class="chk"><input type="checkbox" data-field="target" data-idx="${i}" value="${esc(id)}" ${th.targets.includes(id) ? "checked" : ""}><span>${esc(label)}</span></label>`).join("")
-        : `<div class="hint">${esc(t.no_targets)}</div>`;
+      const targets = groups.length ? this._targetPicker(th, i, groups) : `<div class="hint">${esc(t.no_targets)}</div>`;
       const details = open ? `
         <div class="details">
           <label class="fld"><span>${t.f_hysteresis}</span><span class="num"><input type="number" step="0.5" min="0" data-field="hysteresis" data-idx="${i}" value="${esc(th.hysteresis)}"><em>${esc(u)}</em></span></label>
           <label class="sw"><input type="checkbox" data-field="notify" data-idx="${i}" ${th.notify ? "checked" : ""}><span class="track"></span><span>${t.f_notify}</span></label>
           ${th.notify ? `
             <div class="fld"><span>${t.f_targets}</span><div class="targets">${targets}</div></div>
+            <div class="ttest"><button class="tbtn" data-act="test" data-idx="${i}"><ha-icon icon="mdi:send"></ha-icon>${t.t_test}</button>
+              <span class="tres" data-idx="${i}">${this._testResult(i)}</span></div>
             <label class="sw"><input type="checkbox" data-field="critical" data-idx="${i}" ${th.critical ? "checked" : ""}><span class="track"></span><span>${t.f_critical}</span></label>
             <label class="sw"><input type="checkbox" data-field="clear_message" data-idx="${i}" ${th.clear_message ? "checked" : ""}><span class="track"></span><span>${t.f_clear}</span></label>
             <label class="fld"><span>${t.f_repeat}</span><span class="num"><input type="number" step="1" min="0" data-field="repeat" data-idx="${i}" value="${esc(th.repeat)}"><em>min</em></span></label>
@@ -469,6 +572,7 @@ class LevelWatchCard extends HTMLElement {
           <button class="btn primary" data-act="save" ${ed.saving ? "disabled" : ""}>${ed.saving ? t.saving : t.save}</button>
         </div>
       </div>`;
+    this._applyTargetSearch();
     this._renderPreview();
   }
 
@@ -1191,10 +1295,37 @@ const EDITOR_STYLE = `<style>
   .fld { display: flex; flex-direction: column; gap: 4px; font-size: 0.9em; }
   .fld > span:first-child { color: var(--secondary-text-color); }
   .fld small, .hint { color: var(--secondary-text-color); font-size: 0.8em; }
-  .targets { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chk { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--divider-color, #ccc);
-    border-radius: 16px; padding: 4px 10px 4px 6px; cursor: pointer; font-size: 0.9em; }
-  .chk:has(input:checked) { border-color: var(--th); background: color-mix(in srgb, var(--th) 12%, transparent); }
+  .tg { display: flex; flex-direction: column; gap: 6px; }
+  .tsel { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; align-items: center; }
+  .tchip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--th); border-radius: 14px;
+    background: color-mix(in srgb, var(--th) 14%, transparent); color: var(--primary-text-color);
+    padding: 3px 6px 3px 10px; font: inherit; font-size: 0.85em; cursor: pointer; }
+  .tchip ha-icon { --mdc-icon-size: 14px; opacity: .7; }
+  .tchip:hover ha-icon { opacity: 1; }
+  .tsearch { font: inherit; font-size: 0.9em; padding: 6px 10px; border-radius: 8px; color: var(--primary-text-color);
+    border: 1px solid var(--divider-color, #ccc); background: var(--card-background-color, transparent); }
+  .tlist { border: 1px solid var(--divider-color, #ccc); border-radius: 8px; padding: 4px 0; }
+  .tlist.scroll { max-height: 240px; overflow-y: auto; }
+  .tgh { font-size: 0.75em; text-transform: uppercase; letter-spacing: .05em; color: var(--secondary-text-color);
+    padding: 6px 10px 2px; }
+  .trow { display: flex; align-items: center; gap: 8px; padding: 4px 10px; cursor: pointer; font-size: 0.9em; min-width: 0; }
+  .trow:hover { background: color-mix(in srgb, var(--primary-text-color) 6%, transparent); }
+  .trow input { accent-color: var(--th); margin: 0; flex: none; }
+  .tn { flex: none; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts { flex: 1; min-width: 0; color: var(--secondary-text-color); font-size: 0.85em; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+  .tlist .tnone { padding: 6px 10px; }
+  .ttest { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--th); color: var(--primary-text-color);
+    background: color-mix(in srgb, var(--th) 10%, transparent); border-radius: 8px; padding: 5px 12px; font: inherit;
+    font-size: 0.9em; cursor: pointer; flex: none; }
+  .tbtn:hover { background: color-mix(in srgb, var(--th) 22%, transparent); }
+  .tbtn ha-icon { --mdc-icon-size: 16px; }
+  .tres { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+  .tres small { color: var(--secondary-text-color); font-size: 0.8em; }
+  .tres .good { color: var(--success-color, #43a047); }
+  .tres .bad { color: var(--error-color, #db4437); }
+  [hidden] { display: none !important; }
   .sw { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.9em; }
   .sw input { position: absolute; opacity: 0; pointer-events: none; }
   .track { width: 34px; height: 20px; border-radius: 10px; background: var(--divider-color, #ccc); position: relative; flex: none; transition: background .2s; }
@@ -1314,6 +1445,58 @@ function granules(surface, x, width, bottom, fill) {
     <path d="${d}" fill="${fill}"/>
     <path d="${d}" fill="url(#lwGrain)"/>
     <path d="${d.split(" V")[0]}" class="grainedge"/>`;
+}
+
+/** Sort the notify targets into groups with a readable name each. */
+function groupTargets(targets, hass, t) {
+  const devices = Object.values(hass?.devices || {});
+  const slug = (v) => String(v || "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  const pretty = (v) => {
+    const words = v.replace(/_/g, " ").trim();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+  const groups = { ha: [], app: [], entity: [], service: [] };
+  for (const [id, label] of Object.entries(targets || {})) {
+    if (id === "persistent_notification") {
+      groups.ha.push({ id, name: t.t_persistent, sub: "persistent_notification" });
+    } else if (id.startsWith("entity:")) {
+      const eid = id.slice(7);
+      const name = hass?.states?.[eid]?.attributes?.friendly_name || String(label).replace(/\s*\([^)]*\)$/, "");
+      groups.entity.push({ id, name, sub: eid });
+    } else {
+      const service = id.startsWith("service:") ? id.slice(8) : id;
+      const app = service.match(/^mobile_app_(.+)$/);
+      if (app) {
+        const device = devices.find((d) => slug(d.name_by_user || d.name) === app[1] || slug(d.name) === app[1]);
+        groups.app.push({ id, name: device?.name_by_user || device?.name || pretty(app[1]), sub: `notify.${service}` });
+      } else {
+        groups.service.push({ id, name: pretty(service), sub: `notify.${service}` });
+      }
+    }
+  }
+  const byName = (x, y) => x.name.localeCompare(y.name);
+  return [["ha", t.g_ha], ["app", t.g_app], ["entity", t.g_entity], ["service", t.g_service]]
+    .filter(([k]) => groups[k].length)
+    .map(([k, title]) => ({ title, items: groups[k].sort(byName) }));
+}
+
+function filterTargets(box, query) {
+  if (!box) return;
+  const q = query.trim().toLowerCase();
+  let shown = 0;
+  for (const grp of box.querySelectorAll(".tgrp")) {
+    let any = false;
+    for (const row of grp.querySelectorAll(".trow")) {
+      const hit = !q || row.dataset.q.includes(q);
+      row.hidden = !hit;
+      any ||= hit;
+      if (hit) shown += 1;
+    }
+    grp.hidden = !any;
+  }
+  const none = box.querySelector(".tnone");
+  if (none) none.hidden = shown > 0;
 }
 
 function waves(surface, x, width, bottom, fill) {

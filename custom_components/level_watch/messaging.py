@@ -45,8 +45,12 @@ async def async_send(
     tag: str,
     critical: bool,
     cleared: bool,
-) -> None:
-    """Send one message to every target; a failing target does not stop others."""
+) -> list[tuple[str, str]]:
+    """Send one message to every target; a failing target does not stop others.
+
+    Returns the targets that failed, each with the reason.
+    """
+    failed: list[tuple[str, str]] = []
     for target in targets:
         try:
             await _send_one(
@@ -55,6 +59,8 @@ async def async_send(
             )
         except (HomeAssistantError, ValueError) as err:
             _LOGGER.warning("Level Watch could not notify %s: %s", target, err)
+            failed.append((target, str(err)))
+    return failed
 
 
 async def _send_one(
