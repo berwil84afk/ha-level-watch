@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Level Watch einrichten",
-        "description": "Längen in cm. Ein Sensor in % bleibt in %: Bezüge, Schwellen und die Karte arbeiten dann in %.",
+        "description": "Längen in cm. Ein Sensor in % bleibt in %, ein Gewichtssensor (g, kg, lb) wird in kg geführt: Bezüge, Schwellen und die Karte arbeiten dann in dieser Einheit.",
         "data": {
           "name": "Name",
           "source_entity": "Pegelsensor",
@@ -18,11 +18,11 @@
         "data_description": {
           "name": "Wird als Gerätename angezeigt, z. B. Rhein Köln oder Zisterne.",
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden in cm umgerechnet, % bleibt %.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert (in cm, bei einem Sensor in % in %), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
           "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
         },
@@ -53,7 +53,7 @@
       "tank_vertical_cylinder": "Ein stehender Zylinder braucht den Durchmesser.",
       "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
       "tank_box": "Ein Quader braucht Länge und Breite.",
-      "percent_distance": "Ein Sensor in % misst keinen Abstand. Wähle Messart Pegel."
+      "distance_needs_length": "Abstand von oben geht nur mit einem Sensor mit Längeneinheit. Wähle Messart Pegel."
     },
     "abort": {
       "already_configured": "Dieser Sensor wird bereits überwacht."
@@ -128,11 +128,11 @@
         },
         "data_description": {
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden in cm umgerechnet, % bleibt %.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert (in cm, bei einem Sensor in % in %), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
           "reference_max": "Pegel, der als 100 % gilt (voll). Leer lassen, wenn du keinen Prozentwert brauchst; bei einem Sensor in % gilt dann 100."
         },
@@ -142,7 +142,7 @@
             "description": "Feineinstellungen; die Vorgaben passen für die meisten Sensoren.",
             "data": {
               "trend_window": "Zeitfenster Tendenz",
-              "trend_deadband": "Stabilbereich",
+              "trend_deadband": "Stabilbereich pro Stunde",
               "smoothing": "Glättung",
               "stale_timeout": "Veraltet nach",
               "max_jump": "Max. Sprung",
@@ -151,12 +151,12 @@
             },
             "data_description": {
               "trend_window": "Zeitraum, über den die Änderungsrate berechnet wird.",
-              "trend_deadband": "Raten innerhalb ± dieses Werts gelten als stabil.",
+              "trend_deadband": "Raten innerhalb von ± diesem Wert pro Stunde gelten als stabil, in der Einheit des Pegels (cm, % oder kg).",
               "smoothing": "Median über diesen Zeitraum entfernt einzelne Ausreißer. 0 = aus.",
               "stale_timeout": "Daten gelten als veraltet, wenn der Sensor so lange nichts meldet.",
               "max_jump": "Größere Sprünge werden ignoriert, bis 3 Messungen sie bestätigen. 0 = aus.",
               "consumption_window": "Nur Tank: Zeitraum, über den der Tagesverbrauch gemittelt wird.",
-              "refill_jump": "Nur Tank: Steigt der Pegel binnen zwei Stunden um mindestens so viel, gilt das als Nachtanken und der Verbrauch wird neu berechnet. 0 = aus."
+              "refill_jump": "Nur Tank: Steigt der Pegel binnen zwei Stunden um mindestens so viel (cm, % oder kg), gilt das als Nachtanken und der Verbrauch wird neu berechnet. 0 = aus."
             }
           },
           "tank": {
@@ -215,7 +215,7 @@
       "tank_horizontal_cylinder": "Ein liegender Zylinder braucht Durchmesser und Länge.",
       "tank_box": "Ein Quader braucht Länge und Breite.",
       "preset_empty": "Trag mindestens einen Wert ein.",
-      "percent_distance": "Ein Sensor in % misst keinen Abstand. Wähle Messart Pegel."
+      "distance_needs_length": "Abstand von oben geht nur mit einem Sensor mit Längeneinheit. Wähle Messart Pegel."
     }
   },
   "selector": {
@@ -245,7 +245,10 @@
         "m": "m",
         "in": "in",
         "ft": "ft",
-        "percent": "% (Füllstand)"
+        "percent": "% (Füllstand)",
+        "g": "g",
+        "kg": "kg",
+        "lb": "lb"
       }
     },
     "shape": {

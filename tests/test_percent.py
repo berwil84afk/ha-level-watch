@@ -54,7 +54,7 @@ async def test_flow_detects_percent(hass: HomeAssistant, source) -> None:
         "reference_min": 0, "tank": {"shape": "none"},
     }
     result = await hass.config_entries.flow.async_configure(result["flow_id"], data)
-    assert result["errors"] == {"measurement_mode": "percent_distance"}
+    assert result["errors"] == {"measurement_mode": "distance_needs_length"}
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {**data, "measurement_mode": "level"}
     )

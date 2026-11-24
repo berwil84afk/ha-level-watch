@@ -38,9 +38,25 @@ def is_length_unit(unit: str | None) -> bool:
 PERCENT = "%"
 
 
+KG = "kg"
+_TO_KG = {"g": 0.001, "kg": 1.0, "lb": 0.45359237, "oz": 0.028349523125}
+
+
+def is_mass_unit(unit: str | None) -> bool:
+    return unit in _TO_KG
+
+
+def to_kg(value: float, unit: str) -> float:
+    """Convert a weight to kg; raise ValueError for unknown units."""
+    try:
+        return value * _TO_KG[unit]
+    except KeyError as err:
+        raise ValueError(f"unsupported unit {unit!r}") from err
+
+
 def is_supported_unit(unit: str | None) -> bool:
-    """Length units and %, the two kinds of source Level Watch understands."""
-    return unit == PERCENT or is_length_unit(unit)
+    """Lengths, weights and %, the kinds of source Level Watch understands."""
+    return unit == PERCENT or is_length_unit(unit) or is_mass_unit(unit)
 
 
 def normalize_unit(unit: str | None) -> str | None:
@@ -50,7 +66,11 @@ def normalize_unit(unit: str | None) -> str | None:
 
 def level_unit(source_unit: str | None) -> str:
     """Unit the levels are kept in for a source with this unit."""
-    return PERCENT if source_unit == PERCENT else "cm"
+    if source_unit == PERCENT:
+        return PERCENT
+    if is_mass_unit(source_unit):
+        return KG
+    return "cm"
 
 
 def raw_to_level(

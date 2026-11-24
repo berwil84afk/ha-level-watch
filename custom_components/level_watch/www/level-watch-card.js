@@ -4,9 +4,11 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.8.1";
+const CARD_VERSION = "0.9.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
+const NORMAL_SALT = "#9aa8b6";
+const FILLS = ["auto", "water", "granules"];
 
 const TEXT = {
   de: {
@@ -19,6 +21,8 @@ const TEXT = {
     day: "Tag", days: "Tage", days_in: "Tagen", h: "h", min_u: "min", history: "Verlauf",
     entity: "Entität", title: "Titel", mode: "Darstellung", history_hours: "Verlauf (Stunden)", show_history: "Verlauf anzeigen",
     mode_auto: "Automatisch", mode_water: "Wasserpegel", mode_tank: "Tank",
+    fill: "Füllung", fill_auto: "Automatisch (Körner bei kg, sonst Wasser)", fill_water: "Wasser",
+    fill_granules: "Körnig (z. B. Salz)", color: "Farbe im Normalzustand",
     style: "Stil", style_forecast: "Prognose", style_classic: "Klassisch (Pegellatte / Tank)",
     style_ring: "Ring", style_compact: "Kompakt", forecast_hours: "Prognose (Stunden)",
     now: "jetzt", expected: "voraussichtlich", today: "heute", tomorrow: "morgen",
@@ -45,6 +49,8 @@ const TEXT = {
     day: "day", days: "days", days_in: "days", h: "h", min_u: "min", history: "History",
     entity: "Entity", title: "Title", mode: "Display", history_hours: "History (hours)", show_history: "Show history",
     mode_auto: "Automatic", mode_water: "Water level", mode_tank: "Tank",
+    fill: "Fill", fill_auto: "Automatic (granules for kg, water otherwise)", fill_water: "Water",
+    fill_granules: "Granules (e.g. salt)", color: "Colour when normal",
     style: "Style", style_forecast: "Forecast", style_classic: "Classic (gauge / tank)",
     style_ring: "Ring", style_compact: "Compact", forecast_hours: "Forecast (hours)",
     now: "now", expected: "expected", today: "today", tomorrow: "tomorrow",
@@ -149,6 +155,11 @@ class LevelWatchCard extends HTMLElement {
         { name: "show_history", selector: { boolean: {} } },
         { name: "history_hours", selector: { number: { min: 1, max: 168, mode: "box" } } },
         { name: "forecast_hours", selector: { number: { min: 1, max: 168, mode: "box" } } },
+        {
+          name: "fill",
+          selector: { select: { mode: "dropdown", options: FILLS.map((v) => ({ value: v, label: t[`fill_${v}`] })) } },
+        },
+        { name: "color", selector: { color_rgb: {} } },
       ],
       computeLabel: (schema) => t[schema.name] || schema.name,
     };
@@ -250,7 +261,7 @@ class LevelWatchCard extends HTMLElement {
     const mode = this._config.mode === "auto" || !this._config.mode
       ? (a.kind === "tank" ? "tank" : "water")
       : this._config.mode;
-    const color = a.stage ? a.color : NORMAL_WATER;
+    const color = a.stage ? a.color : this._normalColor(a);
     const title = this._config.title ?? (hass.devices?.[hass.entities?.[entityId]?.device_id]?.name
       || (a.friendly_name || "").replace(/\s+(Pegel|Level)$/i, ""));
     const fmt = (v, d = 1) => new Intl.NumberFormat(hass.locale?.language || "en", {
@@ -282,6 +293,21 @@ class LevelWatchCard extends HTMLElement {
       ev.detail = { entityId };
       this.dispatchEvent(ev);
     });
+  }
+
+  /** Fill colour without an active stage: the card's own choice, else by unit. */
+  _normalColor(a) {
+    const rgb = this._config.color;
+    if (Array.isArray(rgb) && rgb.length === 3) return toHex(rgb);
+    if (typeof rgb === "string" && /^#[0-9a-f]{6}$/i.test(rgb)) return rgb;
+    return unitOf(a) === "kg" ? NORMAL_SALT : NORMAL_WATER;
+  }
+
+  /** Water with waves, or granules (salt, pellets) that lie still. */
+  _fillShape(a, surface, x, width, bottom, fill) {
+    const kind = this._config.fill || "auto";
+    const granular = kind === "granules" || (kind === "auto" && unitOf(a) === "kg");
+    return granular ? granules(surface, x, width, bottom, fill) : waves(surface, x, width, bottom, fill);
   }
 
   _head(c) {
@@ -511,7 +537,7 @@ class LevelWatchCard extends HTMLElement {
 
   _bigValue(c) {
     const { a, level, hasLevel, mode, fmt } = c;
-    if (mode === "tank" && Number.isFinite(a.percent)) return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
+    if (mode === "tank" && Number.isFinite(a.percent) && unitOf(a) !== "kg") return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
     return hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–";
   }
 
@@ -529,7 +555,10 @@ class LevelWatchCard extends HTMLElement {
       }
       const parts = [];
       if (Number.isFinite(a.volume)) parts.push(`${fmt(a.volume, 0)} L${Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : ""}`);
-      if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}`);
+      else if (unitOf(a) === "kg" && Number.isFinite(a.percent) && Number.isFinite(a.reference_max)) {
+        parts.push(`${fmt(a.percent, 0)} % ${t.of} ${fmt(a.reference_max)} kg`);
+      }
+      if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} ${esc(amountUnit(a))} ${t.per_day}`);
       if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`);
       if (parts.length) rows.push(`<div class="small">${esc(parts.join(" · "))}</div>`);
     } else {
@@ -831,12 +860,15 @@ class LevelWatchCard extends HTMLElement {
         + `<line x1="60" y1="0" x2="60" y2="24" class="hit"/>`
         + `<line x1="60" y1="4" x2="60" y2="20" stroke="${esc(th.color)}" stroke-width="2.5"/></g>`;
     }).join("");
-    const center = mode === "tank" && Number.isFinite(a.percent)
-      ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, 0)}` : "–");
-    const sub = mode === "tank" && Number.isFinite(a.volume) ? `${fmt(a.volume, 0)} L` : (hasLevel ? unitOf(a) : "");
+    const weight = unitOf(a) === "kg";
+    const center = mode === "tank" && Number.isFinite(a.percent) && !weight
+      ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, weight ? 1 : 0)}` : "–");
+    let sub = hasLevel ? unitOf(a) : "";
+    if (mode === "tank" && Number.isFinite(a.volume)) sub = `${fmt(a.volume, 0)} L`;
+    else if (weight && Number.isFinite(a.percent)) sub = `kg · ${fmt(a.percent, 0)} %`;
     const lines = [this._trendLine(a, fmt, t)];
     if (Number.isFinite(a.days_left)) lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
-    if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
+    if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} ${esc(amountUnit(a))} ${t.per_day}</div>`);
     if (Number.isFinite(a.hours_to_full)) lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt, true))}</b></div>`);
     lines.push(this._nextLine(a, t, fmt));
     if (a.last_refill) {
@@ -959,11 +991,14 @@ class LevelWatchCard extends HTMLElement {
 
   _tankStats(a, level, hasLevel, fmt, t) {
     const pct = Number.isFinite(a.percent) ? a.percent : null;
-    const big = pct !== null
+    const weight = unitOf(a) === "kg";
+    const big = pct !== null && !weight
       ? `${fmt(pct, 0)}<span class="unit">%</span>`
       : (hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–");
     const lines = [];
-    if (Number.isFinite(a.volume)) {
+    if (weight && pct !== null && Number.isFinite(a.reference_max)) {
+      lines.push(`<div class="line"><b>${fmt(pct, 0)} %</b> ${t.of} ${fmt(a.reference_max)} kg</div>`);
+    } else if (Number.isFinite(a.volume)) {
       const cap = Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : "";
       lines.push(`<div class="line"><b>${fmt(a.volume, 0)} L</b>${cap}</div>`);
     } else if (pct !== null && hasLevel) {
@@ -973,7 +1008,7 @@ class LevelWatchCard extends HTMLElement {
       lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
     }
     if (Number.isFinite(a.consumption)) {
-      lines.push(`<div class="small">${fmt(a.consumption)} ${a.unit === "%" ? "%" : "L"} ${t.per_day}</div>`);
+      lines.push(`<div class="small">${fmt(a.consumption)} ${esc(amountUnit(a))} ${t.per_day}</div>`);
     }
     if (Number.isFinite(a.hours_to_full)) {
       lines.push(`<div class="line">${t.full_in} <b>${esc(this._duration(a.hours_to_full, t, fmt, true))}</b></div>`);
@@ -1036,7 +1071,7 @@ class LevelWatchCard extends HTMLElement {
         </defs>
         <rect x="54" y="${top}" width="98" height="${bottom - top}" rx="4" class="basin"/>
         <g clip-path="url(#lwBasin)">
-          ${waves(ly, 54, 98, bottom, "url(#lwWater)")}
+          ${this._fillShape(a, ly, 54, 98, bottom, "url(#lwWater)")}
         </g>
         <rect x="6" y="${top}" width="26" height="${bottom - top}" rx="2" class="staff"/>
         ${ticks}
@@ -1099,7 +1134,7 @@ class LevelWatchCard extends HTMLElement {
         </defs>
         <g class="shell">${outline}</g>
         <g clip-path="url(#lwTank)">
-          ${waves(ly, box.x, box.w, box.y + box.h + 12, "url(#lwFill)")}
+          ${this._fillShape(a, ly, box.x, box.w, box.y + box.h + 12, "url(#lwFill)")}
         </g>
         ${scale}
         ${lines}
@@ -1190,6 +1225,12 @@ function hoverLine(tip, x1, y1, x2, y2, visible) {
     + `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="hit"/>${visible}</g>`;
 }
 
+/** Unit of an amount per day: litres for a tank in cm, else the level's unit. */
+function amountUnit(a) {
+  const unit = unitOf(a);
+  return unit === "cm" ? "L" : unit;
+}
+
 function unitOf(a) {
   return (a && a.unit) || "cm";
 }
@@ -1250,6 +1291,31 @@ const BOB_SECONDS = 3.8;
  * a quicker wave in front with a light crest, both drifting in opposite
  * directions. Each drifts by exactly one wavelength, so the loop is seamless.
  */
+/**
+ * A heap of granules from `surface` down to `bottom`: a slightly uneven top
+ * and a dotted texture, without motion.
+ */
+function granules(surface, x, width, bottom, fill) {
+  let d = `M${x - 4} ${surface + 1.5}`;
+  const step = 9;
+  for (let i = 0, px = x - 4; px < x + width + 4; i += 1, px += step) {
+    // Fixed bumps, so the surface does not change between updates.
+    const bump = [1.8, -1.2, 2.4, -0.6, 1.2, -2, 0.8][i % 7];
+    d += ` Q${px + step / 2} ${surface + bump} ${px + step} ${surface + (i % 2 ? 1 : -0.5)}`;
+  }
+  d += ` V${bottom} H${x - 4} Z`;
+  return `
+    <defs><pattern id="lwGrain" width="7" height="7" patternUnits="userSpaceOnUse">
+      <circle cx="1.8" cy="2" r="1.1" fill="#000" opacity="0.16"/>
+      <circle cx="5.2" cy="5.4" r="0.9" fill="#000" opacity="0.12"/>
+      <circle cx="5.6" cy="1.4" r="0.7" fill="#fff" opacity="0.35"/>
+      <circle cx="1.6" cy="5.8" r="0.6" fill="#fff" opacity="0.3"/>
+    </pattern></defs>
+    <path d="${d}" fill="${fill}"/>
+    <path d="${d}" fill="url(#lwGrain)"/>
+    <path d="${d.split(" V")[0]}" class="grainedge"/>`;
+}
+
 function waves(surface, x, width, bottom, fill) {
   const crest = (len, amp, lift) => {
     let d = `M${x - len * 2} ${surface - lift}`;
@@ -1317,6 +1383,7 @@ const STYLE = `<style>
   .wave { transition: d 0.8s ease; }
   .wave.a { animation: lw-drift ${WAVE_A_SECONDS}s linear infinite; }
   .wave.b { animation: lw-drift ${WAVE_B_SECONDS}s linear infinite reverse; }
+  .grainedge { fill: none; stroke: #fff; stroke-opacity: 0.45; stroke-width: 1.2; }
   .wave.crest { fill: none; stroke: #fff; stroke-opacity: 0.4; stroke-width: 1.75; }
   .bob { animation: lw-bob ${BOB_SECONDS}s ease-in-out infinite; }
   @keyframes lw-drift { from { transform: translateX(0); } to { transform: translateX(var(--len, 40px)); } }

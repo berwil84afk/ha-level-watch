@@ -27,7 +27,7 @@ Level Watch überwacht einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen 
 - **Meldungen:** über die Companion App (auf Wunsch als kritische Mitteilung, die auch bei lautlosem Handy klingelt), als dauerhafte Meldung in Home Assistant oder über jeden anderen Benachrichtigungsdienst wie Telegram oder E-Mail. Entwarnung und Wiederholung sind möglich.
 - **Prognose:** welche Schwelle als Nächstes kommt und wann sie bei der aktuellen Rate erreicht ist.
 - **Tanks:** Volumen in Litern für stehende und liegende Zylinder und Quader, dazu Verbrauch pro Tag, Reichweite in Tagen, Zeit bis voll und das Erkennen von Nachtanken.
-- **Sensoren in %:** Auch ein Füllstandssensor in Prozent funktioniert. Dann wird alles in % angezeigt.
+- **Sensoren in % oder kg:** Auch ein Füllstandssensor in Prozent funktioniert, ebenso eine Waage, zum Beispiel für das Salz einer Enthärtungsanlage.
 - **Karte:** vier Stile, Skala, Schwellenlinien mit Tooltips, Verlauf der letzten 24 Stunden und ein Schwelleneditor für Admins.
 - **Zuverlässig:** Messwerte und der Zustand der Schwellen überstehen einen Neustart, keine Meldung kommt doppelt. Ein ausgefallener Sensor löst keinen Alarm aus.
 
@@ -36,7 +36,7 @@ Level Watch überwacht einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen 
 ## Voraussetzungen
 
 - Home Assistant 2025.2 oder neuer. Das Icon der Integration erscheint ab Home Assistant 2026.
-- Ein Sensor, der den Pegel als Länge (mm, cm, m, in, ft) oder in % meldet.
+- Ein Sensor, der den Pegel als Länge (mm, cm, m, in, ft), in % oder als Gewicht (g, kg, lb) meldet.
 
 ## Installation
 
@@ -72,6 +72,7 @@ Gehe zu **Einstellungen → Geräte & Dienste → Integration hinzufügen → Le
 - **Drucksensoren** im Brunnen oder Tank.
 - **Amtliche Flusspegel** über die mitgelieferte Integration [PEGELONLINE](https://www.home-assistant.io/integrations/pegel_online/) (Bundeswasserstraßen). Daten: WSV, PEGELONLINE, Lizenz DL-DE->Zero-2.0. Es sind ungeprüfte Rohdaten.
 - **Füllstandssensoren in %**, etwa von einer Heizöl- oder Zisternenanzeige. Pegel, Bezüge, Schwellen, Rate (%/h) und die Karte arbeiten dann in %. Beim Tank bekommst du den Verbrauch in % pro Tag und die Reichweite in Tagen, aber keine Liter. Ohne *Bezug oben* gilt 100 %. *Abstand von oben* ist mit % nicht möglich.
+- **Waagen in g, kg oder lb**, zum Beispiel unter dem Salzbehälter einer Enthärtungsanlage. Der Pegel wird in kg geführt, die Rate in kg/h. Als Tank bekommst du den Verbrauch in kg pro Tag, die Reichweite in Tagen und das Erkennen von Nachfüllen, wenn du einen neuen Sack einfüllst. Mit *Bezug oben* (zum Beispiel 50 kg) wird der Füllstand in % angezeigt. Die Karte füllt den Behälter mit Körnern statt mit Wasser.
 
 ## Schwellen und Meldungen
 
@@ -125,10 +126,10 @@ actions:
 
 | Sensor | Was er zeigt |
 |---|---|
-| Pegel | Geglätteter Pegel in cm (oder %). Die Anzeigeeinheit kannst du in Home Assistant ändern. |
+| Pegel | Geglätteter Pegel in cm (oder % oder kg). Die Anzeigeeinheit kannst du in Home Assistant ändern. |
 | Füllstand | Pegel in % zwischen *Bezug unten* und *Bezug oben*. Bei Tanks mit Form nach Volumen. |
 | Tendenz | Steigend, fallend oder stabil. |
-| Änderungsrate | cm (oder %) pro Stunde, berechnet über das Zeitfenster der Tendenz. |
+| Änderungsrate | cm (oder % oder kg) pro Stunde, berechnet über das Zeitfenster der Tendenz. |
 | Minimum / Maximum 24 h | Niedrigster und höchster Wert der letzten 24 Stunden. |
 | Änderung 24 h | Unterschied zu vor 24 Stunden. |
 | Datenqualität | OK, veraltet, Sensor nicht verfügbar oder keine Daten. |
@@ -179,6 +180,8 @@ Die Integration bringt die Karte selbst mit, du musst keine Ressource eintragen.
 
 Wasser und Akzente nehmen die Farbe der aktiven Stufe an. Fährst du mit der Maus über eine Zone oder eine Schwellenlinie, siehst du Name und Wert.
 
+Bei Gewichten ist der Behälter statt mit Wasser mit ruhigen Körnern in Graublau gefüllt. Mit `fill` wählst du die Füllung selbst, `color` legt die Füllfarbe fest, solange keine Schwelle aktiv ist.
+
 ```yaml
 type: custom:level-watch-card
 entity: sensor.rhein_pegel   # oder eine andere Entität desselben Level-Watch-Geräts
@@ -188,6 +191,8 @@ mode: auto                   # auto, water oder tank
 show_history: true           # false blendet den Verlauf aus
 history_hours: 24            # Länge des Verlaufs
 forecast_hours: 12           # wie weit die Prognose reicht
+fill: auto                   # auto, water oder granules (auto: Körner bei kg)
+color: [43, 143, 214]        # optional, Füllfarbe, solange keine Schwelle aktiv ist
 ```
 
 ## Erweiterte Einstellungen
@@ -197,12 +202,14 @@ Unter **Level Watch → Konfigurieren → Sensor- und Tendenzeinstellungen**, Ab
 | Einstellung | Vorgabe | Wirkung |
 |---|---|---|
 | Zeitfenster Tendenz | 60 min | Zeitraum, über den die Änderungsrate berechnet wird. |
-| Stabilbereich | 1 cm/h | Raten innerhalb von plus oder minus diesem Wert gelten als stabil. |
+| Stabilbereich | 1 pro Stunde | Raten innerhalb von plus oder minus diesem Wert gelten als stabil. |
 | Glättung | 5 min | Median über diesen Zeitraum, entfernt einzelne Ausreißer. 0 schaltet sie aus. |
 | Veraltet nach | 60 min | Meldet der Sensor so lange nichts, gelten die Daten als veraltet. |
 | Max. Sprung | 0 (aus) | Größere Sprünge zählen erst, wenn 3 Messungen sie bestätigen. |
 | Zeitraum Verbrauch | 7 Tage | Nur Tank: Zeitraum, über den der Tagesverbrauch gemittelt wird. |
-| Nachtanken erkennen ab | 5 cm | Nur Tank: So viel Anstieg binnen zwei Stunden gilt als Nachtanken. 0 schaltet es aus. |
+| Nachtanken erkennen ab | 5 | Nur Tank: So viel Anstieg binnen zwei Stunden gilt als Nachtanken. 0 schaltet es aus. |
+
+*Stabilbereich* und *Nachtanken erkennen ab* nutzen die Einheit des Pegels: cm, % oder kg.
 
 Für einen Heizöltank, dessen Pegel nur langsam fällt, passen ein langes Zeitfenster (zum Beispiel 1440 min) und ein kleiner Stabilbereich (zum Beispiel 0,05 cm/h) am besten.
 

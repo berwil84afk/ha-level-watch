@@ -16,6 +16,7 @@ from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
     UnitOfLength,
+    UnitOfMass,
     UnitOfTime,
     UnitOfVolume,
 )
@@ -23,7 +24,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LevelWatchConfigEntry
-from .const import KIND_TANK, QUALITIES, QUALITY_NO_DATA, TRENDS, UNIT_PERCENT, UNIT_RATE
+from .const import (
+    KIND_TANK,
+    QUALITIES,
+    QUALITY_NO_DATA,
+    TRENDS,
+    UNIT_CM,
+    UNIT_KG,
+    UNIT_PERCENT,
+    UNIT_RATE,
+)
 from .entity import LevelWatchEntity
 from .model import LevelWatchModel, Snapshot
 from .thresholds import NORMAL_COLOR
@@ -275,14 +285,20 @@ SHAPE_KEYS = {"volume", "consumption", "days_left"}
 LEVEL_KEYS = {"level", "min_24h", "max_24h", "change_24h"}
 
 
-def _for_percent(d: LevelSensorDescription) -> LevelSensorDescription:
-    """The same sensor for a source in %: no distance class, % based units."""
+def _for_unit(d: LevelSensorDescription, unit: str) -> LevelSensorDescription:
+    """The same sensor for a source in % or kg instead of a length."""
+    if unit == UNIT_CM:
+        return d
     if d.key in LEVEL_KEYS:
+        if unit == UNIT_KG:
+            return replace(
+                d, device_class=SensorDeviceClass.WEIGHT, native_unit_of_measurement=UnitOfMass.KILOGRAMS
+            )
         return replace(d, device_class=None, native_unit_of_measurement=PERCENTAGE)
     if d.key == "rate":
-        return replace(d, native_unit_of_measurement=f"{PERCENTAGE}/h")
+        return replace(d, native_unit_of_measurement=f"{unit}/h")
     if d.key == "consumption":
-        return replace(d, native_unit_of_measurement=f"{PERCENTAGE}/d")
+        return replace(d, native_unit_of_measurement=f"{unit}/d")
     return d
 
 
@@ -294,12 +310,13 @@ async def async_setup_entry(
     model = entry.runtime_data
     s = model.settings
 
-    percent = s.level_unit == UNIT_PERCENT
+    unit = s.level_unit
 
     def wanted(d: LevelSensorDescription) -> bool:
         if d.key == "percent":
-            return s.ref_max is not None and not percent
-        if percent and d.key in ("consumption", "days_left"):
+            # A source in % already is the percentage.
+            return s.ref_max is not None and unit != UNIT_PERCENT
+        if unit != UNIT_CM and d.key in ("consumption", "days_left"):
             return s.kind == KIND_TANK
         if d.key in THRESHOLD_KEYS:
             return bool(s.thresholds)
@@ -316,7 +333,7 @@ async def async_setup_entry(
         return True
 
     async_add_entities(
-        LevelSensor(entry, model, _for_percent(d) if percent else d)
+        LevelSensor(entry, model, _for_unit(d, unit))
         for d in SENSORS
         if wanted(d)
     )

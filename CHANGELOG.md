@@ -6,6 +6,18 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.9.0] - 2026-11-24
+
+### Added
+- Weight sensors in g, kg or lb, for example the salt stock of a water softener. The level is kept in kg, the rate in kg/h, and tanks get consumption in kg per day, the range in days and refill detection. With *Reference top* the fill level is shown in %.
+- Card: for weights the container is filled with still granules instead of moving water, in a grey blue that suits salt.
+- Card: new option `fill` (`auto`, `water`, `granules`) to choose the fill yourself, for example granules for pellets measured in cm.
+- Card: new option `color` sets the fill colour while no threshold is active. Active thresholds keep their own colour.
+
+### Changed
+- Advanced settings: *Stable range* and *Refill detection* no longer show a fixed unit, because they use the unit of the level (cm, % or kg).
+- Setup: *Distance from above* now explains that it needs a sensor that measures a length.
+
 ## [0.8.1] - 2026-11-23
 
 ### Changed

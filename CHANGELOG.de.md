@@ -6,6 +6,18 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.9.0] - 2026-11-24
+
+### Neu
+- Gewichtssensoren in g, kg oder lb, zum Beispiel für den Salzvorrat einer Enthärtungsanlage. Der Pegel wird in kg geführt, die Rate in kg/h, und Tanks bekommen den Verbrauch in kg pro Tag, die Reichweite in Tagen und das Erkennen von Nachfüllen. Mit *Bezug oben* wird der Füllstand in % angezeigt.
+- Karte: Bei Gewichten ist der Behälter mit ruhigen Körnern statt bewegtem Wasser gefüllt, in einem Graublau, das zu Salz passt.
+- Karte: Neue Option `fill` (`auto`, `water`, `granules`), um die Füllung selbst zu wählen, zum Beispiel Körner für Pellets, die in cm gemessen werden.
+- Karte: Neue Option `color` legt die Füllfarbe fest, solange keine Schwelle aktiv ist. Aktive Schwellen behalten ihre eigene Farbe.
+
+### Geändert
+- Erweiterte Einstellungen: *Stabilbereich* und *Nachtanken erkennen ab* zeigen keine feste Einheit mehr, weil sie die Einheit des Pegels nutzen (cm, % oder kg).
+- Einrichtung: Bei *Abstand von oben* steht jetzt, dass dafür ein Sensor nötig ist, der eine Länge misst.
+
 ## [0.8.1] - 2026-11-23
 
 ### Geändert

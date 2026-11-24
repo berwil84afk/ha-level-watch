@@ -41,6 +41,15 @@
       attributes: { source_entity: "sensor.src", friendly_name: a.title + " Pegel", ...a } }];
   }
   const states = Object.fromEntries([
+    lvl("sensor.salz_pegel", 31.2, { title: "Salzvorrat", kind: "tank", unit: "kg", top: 50,
+      reference_min: 0, reference_max: 50, percent: 62.4,
+      thresholds: [
+        { name: "Salz nachfüllen", value: 8, direction: "below", color: "#f57c00", active: false },
+        { name: "Fast leer", value: 3, direction: "below", color: "#e53935", active: false },
+      ],
+      color: "#26a69a", stage: null, trend: "falling", rate: -0.06, quality: "ok",
+      min_24h: 31.2, max_24h: 32.7, change_24h: -1.5,
+      consumption: 1.5, days_left: 20.8, next_threshold: "Salz nachfüllen", hours_to_next: 371, smooth: true }),
     lvl("sensor.ebrach_pegel", 143, { title: "Rauhe Ebrach", kind: "water", reference_min: 100, reference_max: 400,
       thresholds: [
         { name: "Niedrigwasser", value: 100, direction: "below", color: "#e64a19", active: false },
@@ -96,6 +105,14 @@
     if (!Number.isFinite(end)) return [];
     const now = Date.now() / 1000;
     const rows = [];
+    if (s.attributes.smooth) {
+      // Steady use, a little salt at every regeneration.
+      for (let i = 96; i >= 0; i--) {
+        const step = Math.floor((96 - i) / 16);
+        rows.push({ s: (end - s.attributes.change_24h * (1 - step / 6)).toFixed(1), lu: now - i * 900 });
+      }
+      return rows;
+    }
     if (s.attributes.decay) {
       // A flood wave running off over three days.
       for (let i = 288; i >= 0; i--) {
@@ -161,6 +178,8 @@
     h.style.color = "var(--secondary-text-color)";
     grid.appendChild(h);
     for (const id of Object.keys(states)) {
+      const only2 = new URLSearchParams(location.search).get("only");
+      if (only2 && !id.includes(only2)) continue;
       const card = document.createElement("level-watch-card");
       card.setConfig({ entity: id, title: states[id].attributes.title, style });
       card.hass = hass;

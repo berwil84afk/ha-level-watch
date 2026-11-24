@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Final
 
 DOMAIN: Final = "level_watch"
-VERSION: Final = "0.8.1"
+VERSION: Final = "0.9.0"
 CARD_URL: Final = "/level_watch/level-watch-card.js"
 
 # Basic settings
@@ -53,7 +53,8 @@ UNIT_AUTO: Final = "auto"
 UNIT_PERCENT: Final = "%"
 # Translation keys may not contain "%", so the option is called "percent".
 SOURCE_UNIT_PERCENT: Final = "percent"
-SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft", SOURCE_UNIT_PERCENT]
+UNIT_KG: Final = "kg"
+SOURCE_UNITS: Final = [UNIT_AUTO, "mm", "cm", "m", "in", "ft", SOURCE_UNIT_PERCENT, "g", "kg", "lb"]
 
 DEFAULT_NAME: Final = "Pegel"
 DEFAULT_OFFSET: Final = 0.0

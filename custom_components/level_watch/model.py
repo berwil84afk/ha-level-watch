@@ -85,6 +85,7 @@ from .const import (
     TICK_INTERVAL,
     UNIT_AUTO,
     UNIT_CM,
+    UNIT_KG,
     UNIT_PERCENT,
 )
 from .thresholds import Threshold, format_message, load_thresholds, next_threshold, stage
@@ -116,7 +117,7 @@ class Settings:
     stale_timeout: float  # seconds
     max_jump: float  # cm
     thresholds: tuple[Threshold, ...] = ()
-    level_unit: str = UNIT_CM  # cm, or % for a percentage source
+    level_unit: str = UNIT_CM  # cm; % for a percentage source; kg for a weight
     tank: tank.TankShape | None = None  # only for a tank with a known shape
     # Shape the card draws; set for a tank in % too, which has no volume.
     display_shape: str | None = None
@@ -363,6 +364,14 @@ class LevelWatchModel:
                 self._warn_unit(unit)
                 return None
             return value + s.offset
+        if s.level_unit == UNIT_KG:
+            # A weight, e.g. the salt stock of a water softener; kept in kg.
+            if unit in (None, ""):
+                return value + s.offset
+            if not calc.is_mass_unit(unit):
+                self._warn_unit(unit)
+                return None
+            return calc.to_kg(value, unit) + s.offset
         if not calc.is_length_unit(unit):
             self._warn_unit(unit)
             return None
@@ -482,7 +491,8 @@ class LevelWatchModel:
                 else None
             ),
         }
-        if s.level_unit == UNIT_PERCENT:
+        if s.level_unit != UNIT_CM:
+            # % and kg: consumption and range in the level's own unit.
             consumption = tank.consumption_per_day(
                 tank.LINEAR,
                 self.long,

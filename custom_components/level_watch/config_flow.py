@@ -177,7 +177,7 @@ def _advanced_schema(defaults: Mapping[str, Any]) -> vol.Schema:
             vol.Required(
                 CONF_TREND_DEADBAND,
                 default=adv.get(CONF_TREND_DEADBAND, DEFAULT_TREND_DEADBAND),
-            ): _number(0, 1000, 0.1, "cm/h"),
+            ): _number(0, 1000, 0.01),
             vol.Required(
                 CONF_SMOOTHING, default=adv.get(CONF_SMOOTHING, DEFAULT_SMOOTHING)
             ): _number(0, 120, 1, "min"),
@@ -194,7 +194,7 @@ def _advanced_schema(defaults: Mapping[str, Any]) -> vol.Schema:
             ): _number(1, 60, 1, "d"),
             vol.Required(
                 CONF_REFILL_JUMP, default=adv.get(CONF_REFILL_JUMP, DEFAULT_REFILL_JUMP)
-            ): _number(0, 1000, 0.5, "cm"),
+            ): _number(0, 1000, 0.5),
         }
     )
 
@@ -209,8 +209,9 @@ def _validate(hass: HomeAssistant, data: Mapping[str, Any]) -> dict[str, str]:
     unit = _source_unit(hass, data)
     if not calc.is_supported_unit(unit):
         errors[CONF_SOURCE_UNIT] = "unit_unknown"
-    elif unit == calc.PERCENT and data.get(CONF_MODE) == MODE_DISTANCE:
-        errors[CONF_MODE] = "percent_distance"
+    elif not calc.is_length_unit(unit) and data.get(CONF_MODE) == MODE_DISTANCE:
+        # Only a length can be measured downwards to a surface.
+        errors[CONF_MODE] = "distance_needs_length"
     tank_conf = data.get(CONF_TANK) or {}
     shape = tank.TankShape(
         shape=tank_conf.get(CONF_SHAPE) or tank.NONE,
