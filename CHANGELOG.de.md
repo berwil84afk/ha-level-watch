@@ -6,6 +6,15 @@ Alle wichtigen Änderungen an Level Watch. Das Format folgt [Keep a Changelog](h
 
 Die Versionen 0.1.0 bis 0.5.0 waren Entwicklungsschritte ohne GitHub-Release. Die erste Version, die du über HACS installieren kannst, ist 0.6.0.
 
+## [0.12.0] - 2026-11-24
+
+### Neu
+- Volumensensoren in L, m³ oder gal (mit *Automatisch* auch mL und ft³), zum Beispiel ein Tanksensor, der schon Liter meldet. Der Pegel wird in Litern geführt, die Rate in L/h, und Tanks bekommen den Verbrauch in Litern pro Tag, die Reichweite in Tagen und das Erkennen von Nachtanken. Mit *Bezug oben* wird der Füllstand in % angezeigt. Eine Tankform ist nicht nötig.
+- Karte: Bei Litern zeigt der große Wert den Inhalt, daneben „61 % von 1.500 L“.
+
+### Geändert
+- Meldungen haben den Titel „Level Watch meldet: <Name>“ (auf Englisch „Level Watch reports: <name>“). So siehst du sofort, woher eine Meldung kommt.
+
 ## [0.11.1] - 2026-11-24
 
 ### Behoben

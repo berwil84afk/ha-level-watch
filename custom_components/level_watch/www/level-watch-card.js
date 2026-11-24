@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.11.1";
+const CARD_VERSION = "0.12.0";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 const NORMAL_SALT = "#9aa8b6";
@@ -650,8 +650,8 @@ class LevelWatchCard extends HTMLElement {
 
   _bigValue(c) {
     const { a, level, hasLevel, mode, fmt } = c;
-    if (mode === "tank" && Number.isFinite(a.percent) && unitOf(a) !== "kg") return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
-    return hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–";
+    if (mode === "tank" && Number.isFinite(a.percent) && !isAmount(a)) return `${fmt(a.percent, 0)}<span class="unit">%</span>`;
+    return hasLevel ? `${fmt(level, amountDigits(a, level))}<span class="unit">${esc(unitOf(a))}</span>` : "–";
   }
 
   _forecast(c) {
@@ -668,8 +668,8 @@ class LevelWatchCard extends HTMLElement {
       }
       const parts = [];
       if (Number.isFinite(a.volume)) parts.push(`${fmt(a.volume, 0)} L${Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : ""}`);
-      else if (unitOf(a) === "kg" && Number.isFinite(a.percent) && Number.isFinite(a.reference_max)) {
-        parts.push(`${fmt(a.percent, 0)} % ${t.of} ${fmt(a.reference_max)} kg`);
+      else if (isAmount(a) && Number.isFinite(a.percent) && Number.isFinite(a.reference_max)) {
+        parts.push(`${fmt(a.percent, 0)} % ${t.of} ${fmt(a.reference_max)} ${esc(unitOf(a))}`);
       }
       if (Number.isFinite(a.consumption)) parts.push(`${fmt(a.consumption)} ${esc(amountUnit(a))} ${t.per_day}`);
       if (Number.isFinite(a.hours_to_full)) parts.push(`${t.full_in} ${this._duration(a.hours_to_full, t, fmt, true)}`);
@@ -973,12 +973,12 @@ class LevelWatchCard extends HTMLElement {
         + `<line x1="60" y1="0" x2="60" y2="24" class="hit"/>`
         + `<line x1="60" y1="4" x2="60" y2="20" stroke="${esc(th.color)}" stroke-width="2.5"/></g>`;
     }).join("");
-    const weight = unitOf(a) === "kg";
+    const weight = isAmount(a);
     const center = mode === "tank" && Number.isFinite(a.percent) && !weight
-      ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, weight ? 1 : 0)}` : "–");
+      ? `${fmt(a.percent, 0)} %` : (hasLevel ? `${fmt(level, weight ? amountDigits(a, level) : 0)}` : "–");
     let sub = hasLevel ? unitOf(a) : "";
     if (mode === "tank" && Number.isFinite(a.volume)) sub = `${fmt(a.volume, 0)} L`;
-    else if (weight && Number.isFinite(a.percent)) sub = `kg · ${fmt(a.percent, 0)} %`;
+    else if (weight && Number.isFinite(a.percent)) sub = `${unitOf(a)} · ${fmt(a.percent, 0)} %`;
     const lines = [this._trendLine(a, fmt, t)];
     if (Number.isFinite(a.days_left)) lines.push(`<div class="line">${t.left} <b>${esc(this._duration(a.days_left * 24, t, fmt))}</b></div>`);
     if (Number.isFinite(a.consumption)) lines.push(`<div class="small">${fmt(a.consumption)} ${esc(amountUnit(a))} ${t.per_day}</div>`);
@@ -1132,13 +1132,13 @@ class LevelWatchCard extends HTMLElement {
 
   _tankStats(a, level, hasLevel, fmt, t) {
     const pct = Number.isFinite(a.percent) ? a.percent : null;
-    const weight = unitOf(a) === "kg";
+    const weight = isAmount(a);
     const big = pct !== null && !weight
       ? `${fmt(pct, 0)}<span class="unit">%</span>`
-      : (hasLevel ? `${fmt(level)}<span class="unit">${esc(unitOf(a))}</span>` : "–");
+      : (hasLevel ? `${fmt(level, amountDigits(a, level))}<span class="unit">${esc(unitOf(a))}</span>` : "–");
     const lines = [];
     if (weight && pct !== null && Number.isFinite(a.reference_max)) {
-      lines.push(`<div class="line"><b>${fmt(pct, 0)} %</b> ${t.of} ${fmt(a.reference_max)} kg</div>`);
+      lines.push(`<div class="line"><b>${fmt(pct, 0)} %</b> ${t.of} ${fmt(a.reference_max)} ${esc(unitOf(a))}</div>`);
     } else if (Number.isFinite(a.volume)) {
       const cap = Number.isFinite(a.capacity) ? ` ${t.of} ${fmt(a.capacity, 0)} L` : "";
       lines.push(`<div class="line"><b>${fmt(a.volume, 0)} L</b>${cap}</div>`);
@@ -1401,6 +1401,16 @@ function amountUnit(a) {
 
 function unitOf(a) {
   return (a && a.unit) || "cm";
+}
+
+/** A level that is an amount (kg, L): shown as such, with % of the top beside it. */
+function isAmount(a) {
+  return ["kg", "L"].includes(unitOf(a));
+}
+
+/** Litres in the hundreds need no decimals. */
+function amountDigits(a, value) {
+  return unitOf(a) === "L" && Math.abs(value) >= 100 ? 0 : 1;
 }
 
 function clamp01(v) {

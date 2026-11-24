@@ -82,7 +82,7 @@ async def test_crossing_notifies_and_clears(hass: HomeAssistant, source, phone) 
 
     assert len(phone) == 1
     call = phone[0].data
-    assert call["title"] == "Rhein"
+    assert call["title"] == "Level Watch meldet: Rhein"
     assert call["message"].startswith("Rhein: Meldestufe 1 erreicht. Pegel 505 cm")
     assert call["data"]["tag"] == "level_watch_rhein_flood1"
     assert call["data"]["push"]["sound"]["critical"] == 1

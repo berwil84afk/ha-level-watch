@@ -31,6 +31,7 @@ from .const import (
     TRENDS,
     UNIT_CM,
     UNIT_KG,
+    UNIT_L,
     UNIT_PERCENT,
     UNIT_RATE,
 )
@@ -292,13 +293,19 @@ LEVEL_KEYS = {"level", "min_24h", "max_24h", "change_24h"}
 
 
 def _for_unit(d: LevelSensorDescription, unit: str) -> LevelSensorDescription:
-    """The same sensor for a source in % or kg instead of a length."""
+    """The same sensor for a source in %, kg or L instead of a length."""
     if unit == UNIT_CM:
         return d
     if d.key in LEVEL_KEYS:
         if unit == UNIT_KG:
             return replace(
                 d, device_class=SensorDeviceClass.WEIGHT, native_unit_of_measurement=UnitOfMass.KILOGRAMS
+            )
+        if unit == UNIT_L:
+            return replace(
+                d,
+                device_class=SensorDeviceClass.VOLUME_STORAGE,
+                native_unit_of_measurement=UnitOfVolume.LITERS,
             )
         return replace(d, device_class=None, native_unit_of_measurement=PERCENTAGE)
     if d.key == "rate":

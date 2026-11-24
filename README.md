@@ -27,7 +27,7 @@ Level Watch monitors a **water level** (river, pond, well) or a **tank** (cister
 - **Notifications:** Companion app (optionally as a critical alert that sounds even on silent), persistent notification in Home Assistant or any other notify service such as Telegram or email. Optional all-clear and repeat.
 - **Forecast:** which threshold comes next and when it will be reached at the current rate.
 - **Tanks:** volume in litres for vertical cylinders, horizontal cylinders and boxes, plus consumption per day, range in days, time to full and refill detection.
-- **Sensors in % or kg:** a fill level sensor in percent works too, and so does a scale, for example for the salt of a water softener.
+- **Sensors in %, kg or L:** a fill level sensor in percent works too, and so does a scale, for example for the salt of a water softener, or a sensor that reports the content in litres.
 - **Card:** four styles, a scale, threshold lines with tooltips, a 24-hour history and a threshold editor for admins.
 - **Reliable:** readings and threshold states survive a restart, so no notification is sent twice. A failed sensor does not trigger an alert.
 
@@ -36,7 +36,7 @@ Level Watch monitors a **water level** (river, pond, well) or a **tank** (cister
 ## Requirements
 
 - Home Assistant 2025.2 or later. The integration icon appears from Home Assistant 2026 onwards.
-- A sensor that reports the level as a length (mm, cm, m, in, ft), in % or as a weight (g, kg, lb).
+- A sensor that reports the level as a length (mm, cm, m, in, ft), in %, as a weight (g, kg, lb) or as a volume (L, m³, gal).
 
 ## Installation
 
@@ -73,6 +73,7 @@ Go to **Settings → Devices & services → Add integration → Level Watch**. S
 - **Official river gauges** through the built-in [PEGELONLINE](https://www.home-assistant.io/integrations/pegel_online/) integration (German federal waterways). Data: WSV, PEGELONLINE, licence DL-DE->Zero-2.0. The data are raw and unchecked.
 - **Fill level sensors in %**, for example from a heating oil or cistern gauge. Level, references, thresholds, rate (%/h) and the card then all work in %. For a tank you get consumption in % per day and the range in days, but no litres. Without *Reference top*, 100 % is used. *Distance from above* is not possible with %.
 - **Scales in g, kg or lb**, for example under the salt container of a water softener. The level is kept in kg, the rate in kg/h. As a tank you get consumption in kg per day, the range in days and refill detection when you add a new bag. With *Reference top* (for example 50 kg) the fill level is shown in %. The card fills the container with granules instead of water.
+- **Volume sensors in L, m³ or gal**, for example a tank sensor that already reports its content in litres. The level is kept in litres, the rate in L/h, and a tank gets consumption in litres per day, the range in days and refill detection. With *Reference top* (for example 1500 L) the fill level is shown in %. No tank shape is needed, because the sensor already reports the volume.
 
 ## Thresholds and notifications
 
@@ -135,10 +136,10 @@ actions:
 
 | Sensor | What it shows |
 |---|---|
-| Level | Smoothed level in cm (or % or kg). You can change the display unit in Home Assistant. |
+| Level | Smoothed level in cm (or %, kg or L). You can change the display unit in Home Assistant. |
 | Fill level | Level in % between *Reference bottom* and *Reference top*. By volume for tanks with a shape. |
 | Trend | Rising, falling or stable. |
-| Rate of change | cm (or % or kg) per hour, calculated over the trend window. |
+| Rate of change | cm (or %, kg or L) per hour, calculated over the trend window. |
 | Minimum / maximum 24 h | Lowest and highest value of the last 24 hours. |
 | Change 24 h | Difference to 24 hours ago. |
 | Data quality | OK, stale, sensor unavailable or no data. |
@@ -218,7 +219,7 @@ In **Level Watch → Configure → Sensor and trend settings**, section *Trend a
 | Consumption period | 7 days | Tanks only: period over which the daily consumption is averaged. |
 | Refill detection | 5 | Tanks only: a rise of at least this much within two hours counts as a refill. 0 switches it off. |
 
-*Stable range* and *Refill detection* use the unit of the level: cm, % or kg.
+*Stable range* and *Refill detection* use the unit of the level: cm, %, kg or L.
 
 For a heating oil tank whose level falls only slowly, a long trend window (for example 1440 min) and a small stable range (for example 0.05 cm/h) work best.
 

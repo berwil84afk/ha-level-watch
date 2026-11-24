@@ -6,6 +6,15 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.12.0] - 2026-11-24
+
+### Added
+- Volume sensors in L, m³ or gal (also mL and ft³ with *Automatic*), for example a tank sensor that already reports litres. The level is kept in litres, the rate in L/h, and tanks get consumption in litres per day, the range in days and refill detection. With *Reference top* the fill level is shown in %. No tank shape is needed.
+- Card: for litres the big value shows the content, with "61 % of 1,500 L" beside it.
+
+### Changed
+- Notifications have the title "Level Watch reports: <name>" (in German "Level Watch meldet: <name>"), so you can see at once where a message comes from.
+
 ## [0.11.1] - 2026-11-24
 
 ### Fixed

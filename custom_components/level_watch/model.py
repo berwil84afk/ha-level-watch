@@ -86,6 +86,7 @@ from .const import (
     UNIT_AUTO,
     UNIT_CM,
     UNIT_KG,
+    UNIT_L,
     UNIT_PERCENT,
 )
 from .thresholds import (
@@ -124,7 +125,7 @@ class Settings:
     stale_timeout: float  # seconds
     max_jump: float  # cm
     thresholds: tuple[Threshold, ...] = ()
-    level_unit: str = UNIT_CM  # cm; % for a percentage source; kg for a weight
+    level_unit: str = UNIT_CM  # cm; % for a percentage; kg for a weight; L for a volume
     tank: tank.TankShape | None = None  # only for a tank with a known shape
     # Shape the card draws; set for a tank in % too, which has no volume.
     display_shape: str | None = None
@@ -382,6 +383,14 @@ class LevelWatchModel:
                 self._warn_unit(unit)
                 return None
             return calc.to_kg(value, unit) + s.offset
+        if s.level_unit == UNIT_L:
+            # A volume, e.g. the content a tank sensor reports in litres.
+            if unit in (None, ""):
+                return value + s.offset
+            if not calc.is_volume_unit(unit):
+                self._warn_unit(unit)
+                return None
+            return calc.to_liters(value, unit) + s.offset
         if not calc.is_length_unit(unit):
             self._warn_unit(unit)
             return None
@@ -629,7 +638,7 @@ class LevelWatchModel:
             messaging.async_send(
                 self.hass,
                 th.targets,
-                title=self.settings.name,
+                title=self._title(),
                 message=message,
                 tag=f"{DOMAIN}_{self.entry_id}_{th.id}",
                 critical=th.critical,
@@ -638,6 +647,10 @@ class LevelWatchModel:
             eager_start=True,
         )
 
+
+    def _title(self) -> str:
+        """Title of every message, e.g. "Level Watch meldet: Stand Salz"."""
+        return texts(self.hass.config.language)["title"].format(name=self.settings.name)
 
     async def async_send_test(self, th: Threshold) -> dict[str, Any]:
         """Send the threshold's message once, marked as a test.
@@ -660,7 +673,7 @@ class LevelWatchModel:
         failed = await messaging.async_send(
             self.hass,
             th.targets,
-            title=self.settings.name,
+            title=self._title(),
             message=f"{prefix}: {message}",
             tag=f"{DOMAIN}_{self.entry_id}_{th.id}_test",
             critical=th.critical,

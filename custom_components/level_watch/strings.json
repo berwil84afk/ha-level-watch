@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Set up Level Watch",
-        "description": "Lengths in cm. A sensor in % stays in %, a weight sensor (g, kg, lb) is kept in kg: references, thresholds and the card then work in that unit.",
+        "description": "Lengths in cm. A sensor in % stays in %, a weight sensor (g, kg, lb) is kept in kg, a volume sensor (L, m³, gal) in L: references, thresholds and the card then work in that unit.",
         "data": {
           "name": "Name",
           "source_entity": "Level sensor",
@@ -18,13 +18,13 @@
         "data_description": {
           "name": "Shown as device name, e.g. Rhine Cologne or Cistern.",
           "source_entity": "Sensor that delivers the level or the distance to the surface.",
-          "source_unit": "Automatic uses the unit of the sensor. Lengths (mm, cm, m …) become cm, weights (g, kg, lb) become kg, % stays %.",
+          "source_unit": "Automatic uses the unit of the sensor. Lengths (mm, cm, m …) become cm, weights (g, kg, lb) become kg, volumes (L, m³, gal) become L, % stays %.",
           "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
           "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
           "offset": "Added to every value (in cm, %, or kg, like the level), e.g. to correct the gauge zero.",
           "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
-          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
+          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm, 1500 L or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
         },
         "sections": {
           "tank": {
@@ -128,13 +128,13 @@
         },
         "data_description": {
           "source_entity": "Sensor that delivers the level or the distance to the surface.",
-          "source_unit": "Automatic uses the unit of the sensor. Lengths (mm, cm, m …) become cm, weights (g, kg, lb) become kg, % stays %.",
+          "source_unit": "Automatic uses the unit of the sensor. Lengths (mm, cm, m …) become cm, weights (g, kg, lb) become kg, volumes (L, m³, gal) become L, % stays %.",
           "kind": "Water level (river, pond, well) or tank (cistern, heating oil).",
           "measurement_mode": "Level: the sensor reports the height of the surface. Distance: the sensor is mounted on top and measures down to the surface (ultrasonic, radar).",
           "sensor_height": "Only for distance measurement: height of the sensor above the reference zero (e.g. tank bottom).",
           "offset": "Added to every value (in cm, %, or kg, like the level), e.g. to correct the gauge zero.",
           "reference_min": "Level that counts as 0 % (empty or lowest level). For a sensor in %: usually 0.",
-          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
+          "reference_max": "Level that counts as 100 %: for a tank the maximum fill level (e.g. 120 cm, 1500 L or 50 kg of salt), for a river the top of the scale. Enter it for a clean display, because the scale and the tank drawing reach up to this value. Without it there is no percentage and the card guesses the top from readings and thresholds. For a sensor in % it defaults to 100."
         },
         "sections": {
           "advanced": {
@@ -151,12 +151,12 @@
             },
             "data_description": {
               "trend_window": "Period over which the rate of change is computed.",
-              "trend_deadband": "Rates within ± this value per hour count as stable, in the unit of the level (cm, % or kg).",
+              "trend_deadband": "Rates within ± this value per hour count as stable, in the unit of the level (cm, %, kg or L).",
               "smoothing": "Median over this period removes single outliers. 0 = off.",
               "stale_timeout": "Data counts as stale if the sensor reports nothing for this long.",
               "max_jump": "Larger jumps are ignored until 3 readings confirm them. 0 = off.",
               "consumption_window": "Tank only: period over which the daily consumption is averaged.",
-              "refill_jump": "Tank only: a rise by at least this much (cm, % or kg) within two hours counts as refill and restarts the consumption. 0 = off."
+              "refill_jump": "Tank only: a rise by at least this much (cm, %, kg or L) within two hours counts as refill and restarts the consumption. 0 = off."
             }
           },
           "tank": {
@@ -248,7 +248,10 @@
         "percent": "% (fill level)",
         "g": "g",
         "kg": "kg",
-        "lb": "lb"
+        "lb": "lb",
+        "l": "L (litres)",
+        "m3": "m³",
+        "gal": "gal (US)"
       }
     },
     "shape": {

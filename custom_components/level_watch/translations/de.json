@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Level Watch einrichten",
-        "description": "Längen in cm. Ein Sensor in % bleibt in %, ein Gewichtssensor (g, kg, lb) wird in kg geführt: Bezüge, Schwellen und die Karte arbeiten dann in dieser Einheit.",
+        "description": "Längen in cm. Ein Sensor in % bleibt in %, ein Gewichtssensor (g, kg, lb) wird in kg geführt, ein Volumensensor (L, m³, gal) in L: Bezüge, Schwellen und die Karte arbeiten dann in dieser Einheit.",
         "data": {
           "name": "Name",
           "source_entity": "Pegelsensor",
@@ -18,13 +18,13 @@
         "data_description": {
           "name": "Wird als Gerätename angezeigt, z. B. Rhein Köln oder Zisterne.",
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, % bleibt %.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, Volumen (L, m³, gal) zu L, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "offset": "Wird zu jedem Wert addiert (in cm, %, kg oder L, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
-          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
+          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm, 1500 L oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
         },
         "sections": {
           "tank": {
@@ -128,13 +128,13 @@
         },
         "data_description": {
           "source_entity": "Sensor, der den Pegel oder den Abstand zur Oberfläche liefert.",
-          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, % bleibt %.",
+          "source_unit": "Automatisch nimmt die Einheit des Sensors. Längen (mm, cm, m …) werden zu cm, Gewichte (g, kg, lb) zu kg, Volumen (L, m³, gal) zu L, % bleibt %.",
           "kind": "Wasserpegel (Fluss, Teich, Brunnen) oder Tank (Zisterne, Heizöl).",
           "measurement_mode": "Pegel: Der Sensor meldet die Höhe der Oberfläche. Abstand: Der Sensor sitzt oben und misst nach unten bis zur Oberfläche (Ultraschall, Radar).",
           "sensor_height": "Nur bei Abstandsmessung: Höhe des Sensors über dem Bezugsnullpunkt (z. B. Tankboden).",
-          "offset": "Wird zu jedem Wert addiert (in cm, % oder kg, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
+          "offset": "Wird zu jedem Wert addiert (in cm, %, kg oder L, wie der Pegel), z. B. um den Pegelnullpunkt zu korrigieren.",
           "reference_min": "Pegel, der als 0 % gilt (leer oder niedrigster Stand). Bei einem Sensor in % meist 0.",
-          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
+          "reference_max": "Pegel, der als 100 % gilt: beim Tank der maximale Füllstand (z. B. 120 cm, 1500 L oder 50 kg Salz), beim Fluss das obere Ende der Skala. Trag ihn für eine saubere Anzeige ein, denn Skala und Tankgrafik reichen bis zu diesem Wert. Ohne ihn gibt es keinen Prozentwert, und die Karte schätzt das obere Ende aus Messwerten und Schwellen. Bei einem Sensor in % gilt ohne Eintrag 100."
         },
         "sections": {
           "advanced": {
@@ -151,12 +151,12 @@
             },
             "data_description": {
               "trend_window": "Zeitraum, über den die Änderungsrate berechnet wird.",
-              "trend_deadband": "Raten innerhalb von ± diesem Wert pro Stunde gelten als stabil, in der Einheit des Pegels (cm, % oder kg).",
+              "trend_deadband": "Raten innerhalb von ± diesem Wert pro Stunde gelten als stabil, in der Einheit des Pegels (cm, %, kg oder L).",
               "smoothing": "Median über diesen Zeitraum entfernt einzelne Ausreißer. 0 = aus.",
               "stale_timeout": "Daten gelten als veraltet, wenn der Sensor so lange nichts meldet.",
               "max_jump": "Größere Sprünge werden ignoriert, bis 3 Messungen sie bestätigen. 0 = aus.",
               "consumption_window": "Nur Tank: Zeitraum, über den der Tagesverbrauch gemittelt wird.",
-              "refill_jump": "Nur Tank: Steigt der Pegel binnen zwei Stunden um mindestens so viel (cm, % oder kg), gilt das als Nachtanken und der Verbrauch wird neu berechnet. 0 = aus."
+              "refill_jump": "Nur Tank: Steigt der Pegel binnen zwei Stunden um mindestens so viel (cm, %, kg oder L), gilt das als Nachtanken und der Verbrauch wird neu berechnet. 0 = aus."
             }
           },
           "tank": {
@@ -248,7 +248,10 @@
         "percent": "% (Füllstand)",
         "g": "g",
         "kg": "kg",
-        "lb": "lb"
+        "lb": "lb",
+        "l": "L (Liter)",
+        "m3": "m³",
+        "gal": "gal (US)"
       }
     },
     "shape": {

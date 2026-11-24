@@ -54,14 +54,35 @@ def to_kg(value: float, unit: str) -> float:
         raise ValueError(f"unsupported unit {unit!r}") from err
 
 
+LITER = "L"
+_TO_L = {
+    "mL": 0.001, "L": 1.0, "l": 1.0, "m³": 1000.0, "gal": 3.785411784,
+    "ft³": 28.316846592, "fl. oz.": 0.0295735295625,
+}
+
+
+def is_volume_unit(unit: str | None) -> bool:
+    return unit in _TO_L
+
+
+def to_liters(value: float, unit: str) -> float:
+    """Convert a volume to litres; raise ValueError for unknown units."""
+    try:
+        return value * _TO_L[unit]
+    except KeyError as err:
+        raise ValueError(f"unsupported unit {unit!r}") from err
+
+
 def is_supported_unit(unit: str | None) -> bool:
-    """Lengths, weights and %, the kinds of source Level Watch understands."""
-    return unit == PERCENT or is_length_unit(unit) or is_mass_unit(unit)
+    """Lengths, weights, volumes and %, the kinds of source Level Watch understands."""
+    return (
+        unit == PERCENT or is_length_unit(unit) or is_mass_unit(unit) or is_volume_unit(unit)
+    )
 
 
 def normalize_unit(unit: str | None) -> str | None:
-    """Map the "percent" option of the unit selector to "%"."""
-    return PERCENT if unit == "percent" else unit
+    """Map the selector options "percent", "l" and "m3" to their real units."""
+    return {"percent": PERCENT, "l": LITER, "m3": "m³"}.get(unit, unit) if unit else unit
 
 
 def level_unit(source_unit: str | None) -> str:
@@ -70,6 +91,8 @@ def level_unit(source_unit: str | None) -> str:
         return PERCENT
     if is_mass_unit(source_unit):
         return KG
+    if is_volume_unit(source_unit):
+        return LITER
     return "cm"
 
 
