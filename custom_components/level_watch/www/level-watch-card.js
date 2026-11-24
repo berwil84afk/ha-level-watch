@@ -4,7 +4,7 @@
  * the same Level Watch device works too and is resolved to that sensor.
  */
 
-const CARD_VERSION = "0.11.0";
+const CARD_VERSION = "0.11.1";
 const STYLES = ["forecast", "classic", "ring", "compact"];
 const NORMAL_WATER = "#2b8fd6";
 const NORMAL_SALT = "#9aa8b6";
@@ -326,10 +326,15 @@ class LevelWatchCard extends HTMLElement {
     return granular ? granules(surface, x, width, bottom, fill) : waves(surface, x, width, bottom, fill);
   }
 
-  _head(c) {
-    const edit = this._hass?.user?.is_admin
+  /** Pencil that opens the threshold editor; only admins may change thresholds. */
+  _editButton(c) {
+    return this._hass?.user?.is_admin
       ? `<button class="edit" title="${esc(c.t.edit_thresholds)}" aria-label="${esc(c.t.edit_thresholds)}">${icon("pencil")}</button>`
       : "";
+  }
+
+  _head(c) {
+    const edit = this._editButton(c);
     return `<div class="head"><div class="title">${esc(c.title)}</div><div class="headright">${this._stageChip(c.a, c.t)}${edit}</div></div>`;
   }
 
@@ -1018,7 +1023,7 @@ class LevelWatchCard extends HTMLElement {
     return `<div class="cbox ${c.dim}">
         <div class="cwrap"><div class="cbar"><div style="height:${(frac * 100).toFixed(1)}%;background:${esc(color)}"></div></div>${marks}</div>
         <div class="cinfo">
-          <div class="ctitle">${esc(c.title)}</div>
+          <div class="ctop"><div class="ctitle">${esc(c.title)}</div>${this._editButton(c)}</div>
           <div class="cval">${this._bigValue(c)}</div>
           ${stage}
           ${hint || icon ? `<div class="chint" title="${esc(hint)}">${icon}<span>${esc(hint)}</span></div>` : ""}
@@ -1647,6 +1652,11 @@ const STYLE = `<style>
   .cmark::after { content: ""; position: absolute; inset: -5px 0; }
   .cmark.on { height: 4px; opacity: 1; box-shadow: 0 0 0 1px var(--card-background-color, #fff); }
   .cinfo { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .cinfo { flex: 1; }
+  .ctop { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+  .ctop .ctitle { flex: 1; min-width: 0; }
+  .ctop .edit { margin: -5px -8px -5px 0; padding: 3px; flex: none; }
+  .ctop .edit .mdi { width: 16px; height: 16px; }
   .ctitle { font-size: 0.9em; color: var(--secondary-text-color); white-space: nowrap; overflow: hidden;
     text-overflow: ellipsis; }
   .cval { font-size: 1.7em; font-weight: 500; line-height: 1.1; color: var(--primary-text-color); }

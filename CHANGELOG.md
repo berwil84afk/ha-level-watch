@@ -6,6 +6,11 @@ All notable changes to Level Watch. The format follows [Keep a Changelog](https:
 
 Versions 0.1.0 to 0.5.0 were development steps without a GitHub release. The first release you can install through HACS is 0.6.0.
 
+## [0.11.1] - 2026-11-24
+
+### Fixed
+- Card (compact style): admins now see the pencil that opens the threshold editor, like in the other styles.
+
 ## [0.11.0] - 2026-11-24
 
 ### Added
