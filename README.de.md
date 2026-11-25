@@ -8,7 +8,7 @@
   <picture><img src="https://img.shields.io/github/commit-activity/m/berwil84afk/ha-level-watch" alt="Commit activity"></picture>
   <a href="https://github.com/berwil84afk/ha-level-watch/issues"><img src="https://img.shields.io/github/issues/berwil84afk/ha-level-watch" alt="Issues"></a>
   <picture><img src="https://img.shields.io/badge/dynamic/json?color=41BDF5&logo=home-assistant&label=Active%20installations&cacheSeconds=15600&url=https://analytics.home-assistant.io/custom_integrations.json&query=$.level_watch.total" alt="Active installations"></picture>
-  <a href="https://hacs.xyz/docs/faq/custom_repositories/"><img src="https://img.shields.io/badge/HACS-Custom-41BDF5.svg" alt="HACS Custom"></a>
+  <a href="https://hacs.xyz/"><img src="https://img.shields.io/badge/HACS-Default-41BDF5.svg" alt="HACS Default"></a>
   <picture><img src="https://img.shields.io/badge/Home%20Assistant-2025.2%2B-18BCF2.svg" alt="Home Assistant 2025.2+"></picture>
   <a href="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml"><img src="https://github.com/berwil84afk/ha-level-watch/actions/workflows/validate.yml/badge.svg" alt="Validate"></a>
   <a href="https://buymeacoffee.com/berwil84afk"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
@@ -42,9 +42,12 @@ Level Watch überwacht einen **Wasserpegel** (Fluss, Teich, Brunnen) oder einen 
 
 ### HACS (empfohlen)
 
-1. Öffne in HACS das Menü (⋮) und wähle **Benutzerdefinierte Repositories**.
-2. Füge `https://github.com/berwil84afk/ha-level-watch` mit dem Typ **Integration** hinzu.
-3. Suche nach **Level Watch**, lade die Integration herunter und starte Home Assistant neu.
+Level Watch ist in der Standardliste von HACS.
+
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=berwil84afk&repository=ha-level-watch&category=integration)
+
+1. Klick auf den Knopf oben oder such in HACS nach **Level Watch**.
+2. Lade die Integration herunter und starte Home Assistant neu.
 
 ### Von Hand
 
